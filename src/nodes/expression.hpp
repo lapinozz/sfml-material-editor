@@ -6,14 +6,39 @@ struct ExpressionNode : Graph::Node
 {
 	struct NodeArchetype* archetype;
 
-	std::vector<NodeArchetype::Input> inputs;
-	std::vector<NodeArchetype::Output> outputs;
+	struct Input : public NodeArchetype::Input
+	{
+		Value value;
+	};
+
+	struct Output : public NodeArchetype::Output
+	{
+		Value value;
+	};
+
+	std::vector<Input> inputs;
+	std::vector<Output> outputs;
 
 	using Ptr = std::unique_ptr<ExpressionNode>;
 
-	ExpressionNode(struct NodeArchetype* archetype) : archetype{ archetype }, inputs{ archetype->inputs }, outputs{ archetype->outputs }
+	ExpressionNode(struct NodeArchetype* archetype) : archetype{ archetype }, inputs{ archetype->inputs.begin(), archetype->inputs.end() }, outputs{archetype->outputs.begin(), archetype->outputs.end() }
 	{
 
+	}
+
+	Value getInput(uint8_t index) const
+	{
+		return inputs.at(index).value;
+	}
+
+	void setOutput(uint8_t index, const Value& value)
+	{
+		outputs.at(index).value = value;
+	}
+
+	void setOutput(uint8_t index, Value&& value)
+	{
+		outputs.at(index).value = std::move(value);
 	}
 
 	virtual void serialize(Serializer& s)
@@ -21,7 +46,7 @@ struct ExpressionNode : Graph::Node
 		s.serialize("id", id);
 
 		using namespace std::placeholders;
-		s.serializeValue<ImVec2>(std::bind(ed::GetNodePosition, id), std::bind(ed::SetNodePosition, id, _1));
+		s.at("pos").serializeValue<ImVec2>(std::bind(ed::GetNodePosition, id), std::bind(ed::SetNodePosition, id, _1));
 		//ed::GetNodePosition()
 	}
 
@@ -30,6 +55,12 @@ struct ExpressionNode : Graph::Node
 		for (std::size_t x{}; x < inputs.size(); x++)
 		{
 			inputs[x].link = graph.findLink(id.makeInput(x));
+			inputs[x].value = {};
+		}
+		for (std::size_t x{}; x < outputs.size(); x++)
+		{
+			outputs[x].link = graph.findLink(id.makeOutput(x));
+			outputs[x].value = {};
 		}
 	}
 
@@ -51,17 +82,24 @@ struct ExpressionNode : Graph::Node
 
 		ImGui::BeginHorizontal("content");
 
-		ImGui::BeginVertical("inputs");
-		drawInputPins();
-		ImGui::EndVertical();
+			ImGui::BeginVertical("inputs");
+				drawInputPins();
+				ImGui::Spring(1, 0);
+			ImGui::EndVertical();
 
-		ImGui::BeginVertical("middle", ImVec2(0, 0), 0.5);
-		drawMiddle();
-		ImGui::EndVertical();
+			ImGui::Spring(1, 0);
 
-		ImGui::BeginVertical("outputs", ImVec2(0, 0), 1);
-		drawOutputPins();
-		ImGui::EndVertical();
+			ImGui::BeginVertical("middle", ImVec2(0, 0), 0.5);
+				drawMiddle();
+				ImGui::Spring(1, 0);
+			ImGui::EndVertical();
+
+			ImGui::Spring(1, 0);
+
+			ImGui::BeginVertical("outputs", ImVec2(0, 0), 1);
+				drawOutputPins();
+				ImGui::Spring(1, 0);
+			ImGui::EndVertical();
 
 		ImGui::EndHorizontal();
 
@@ -169,11 +207,13 @@ struct ExpressionNode : Graph::Node
 		ImDrawList* draw_list = ImGui::GetWindowDrawList();
 		ImVec2 p = ImGui::GetCursorScreenPos();
 		auto textSize = ImGui::CalcTextSize("In");
-		draw_list->AddCircle(ImVec2(p.x + size, p.y + textSize.y / 2), size, IM_COL32(255, 0, 0, 255));
+		const auto color = output.link ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
+		draw_list->AddCircle(ImVec2(p.x + size, p.y + textSize.y / 2), size, color);
 		ImGui::Dummy(ImVec2(size * 2, size));
 	};
 
 	virtual void drawMiddle()
 	{
 	};
+
 };

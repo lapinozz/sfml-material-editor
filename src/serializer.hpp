@@ -2,6 +2,7 @@
 
 #include <string_view>
 #include <vector>
+#include <array>
 #include <set>
 
 #include <nlohmann/json.hpp>
@@ -102,19 +103,9 @@ void serialize(Serializer& s, float& f)
 	}
 }
 
-void serialize(Serializer& s, std::uint32_t& f)
-{
-	if (s.isSaving)
-	{
-		s.j = f;
-	}
-	else
-	{
-		f = s.j;
-	}
-}
-
-void serialize(Serializer& s, std::uint64_t& f)
+template <typename T>
+requires std::is_arithmetic_v<T>
+void serialize(Serializer& s, T& f)
 {
 	if (s.isSaving)
 	{
@@ -152,6 +143,15 @@ void serialize(Serializer& s, std::vector<T>& v)
 	}
 }
 
+template<typename T, std::size_t S>
+void serialize(Serializer& s, std::array<T, S>& v)
+{
+	for (std::size_t x = 0; x < v.size(); x++)
+	{
+		s.at(x).serialize(v[x]);
+	}
+}
+
 template<typename T>
 void serialize(Serializer& s, std::set<T>& set)
 {
@@ -166,4 +166,11 @@ void serialize(Serializer& s, std::set<T>& set)
 			set = std::set<T>{ vec.begin(), vec.end() };
 		}
 	);
+}
+
+template<typename T>
+requires std::is_enum_v<T>
+void serialize(Serializer& s, T& e)
+{
+	serialize(s, reinterpret_cast<std::underlying_type_t<T>&>(e));
 }

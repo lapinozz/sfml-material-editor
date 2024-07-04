@@ -8,6 +8,7 @@
 
 struct NodeArchetype
 {
+	std::string category;
 	std::string id;
 	std::string title;
 
@@ -26,19 +27,12 @@ struct NodeArchetype
 		std::string name;
 		ValueType type;
 		bool saveToVar = true;
+
+		LinkId link{ 0 };
 	};
 
 	std::vector<Input> inputs;
 	std::vector<Output> outputs;
 
 	std::function<Graph::Node::Ptr()> createNode;
-
-	template<typename T>
-	static auto makeArchetype(NodeArchetype archetype)
-	{
-		auto archetypePtr = std::make_unique<NodeArchetype>(std::move(archetype));
-		auto archetypeRawPtr = archetypePtr.get();
-		archetypePtr->createNode = [archetypeRawPtr]() { return std::make_unique<T>(archetypeRawPtr); };
-		return archetypePtr;
-	};
 };

@@ -6,16 +6,15 @@ option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
 include(FetchContent)
 
+add_compile_options(-fsanitize=address)
+add_link_options(-fsanitize=address)
+
 FetchContent_Declare(SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
     GIT_TAG master)
 FetchContent_MakeAvailable(SFML)
 
-FetchContent_Declare(ImGui
-    GIT_REPOSITORY https://github.com/thedmd/imgui
-    GIT_TAG feature/layout)
-FetchContent_MakeAvailable(ImGui)
-FetchContent_GetProperties(ImGui SOURCE_DIR IMGUI_DIR)
+set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/deps/imgui")
 
 set(IMGUI_SFML_FIND_SFML OFF)
 FetchContent_Declare(ImGui-SFML
@@ -23,32 +22,22 @@ FetchContent_Declare(ImGui-SFML
     GIT_TAG master)
 FetchContent_MakeAvailable(ImGui-SFML)
 
-FetchContent_Declare(imnodes
-    GIT_REPOSITORY https://github.com/Nelarius/imnodes
-    GIT_TAG v0.5)
-FetchContent_MakeAvailable(imnodes)
-FetchContent_GetProperties(imnodes SOURCE_DIR IMNODES_DIR)
+set(IMNOED_DIR "${PROJECT_SOURCE_DIR}/deps/imgui-node-editor")
 
-FetchContent_Declare(imnoed
-    GIT_REPOSITORY https://github.com/thedmd/imgui-node-editor
-    GIT_TAG v0.9.3)
-FetchContent_MakeAvailable(imnoed)
-FetchContent_GetProperties(imnoed SOURCE_DIR IMNOED_DIR)
-
-file( GLOB SRCS ./src/*.cpp ./src/*.hpp ./src/**/*.cpp ./src/**/*.hpp)
+file( GLOB_RECURSE SRCS ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.hpp )
 
 add_executable(CMakeSFMLProject 
-    ${SRCS} 
-    "${IMNODES_DIR}/imnodes.cpp" 
+    ${SRCS}
     "${IMNOED_DIR}/imgui_canvas.cpp" 
     "${IMNOED_DIR}/crude_json.cpp" 
     "${IMNOED_DIR}/imgui_node_editor.cpp" 
     "${IMNOED_DIR}/imgui_node_editor_api.cpp"
+    "${PROJECT_SOURCE_DIR}/deps/ImGuiColorTextEdit/TextEditor.cpp"
 )
 
-target_include_directories(CMakeSFMLProject PRIVATE ./src/)
+target_include_directories(CMakeSFMLProject PRIVATE ${PROJECT_SOURCE_DIR}/src/)
+target_include_directories(CMakeSFMLProject PRIVATE ${PROJECT_SOURCE_DIR}/deps/)
 
-target_include_directories(CMakeSFMLProject PRIVATE "${IMNODES_DIR}")
 target_include_directories(CMakeSFMLProject PRIVATE "${IMNOED_DIR}")
 
 target_link_libraries(CMakeSFMLProject PRIVATE sfml-graphics ImGui-SFML::ImGui-SFML)

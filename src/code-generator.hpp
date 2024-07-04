@@ -1,16 +1,47 @@
 #pragma once
 
+#include <string>
+#include <vector>
+#include <unordered_map>
+
+#include "graph.hpp"
+#include "value.hpp"
+#include "nodes/expression.hpp"
+
 struct CodeGenerator
 {
+	enum class Type
+	{
+		Vertex,
+		Fragment
+	};
+
 	Graph& graph;
+	Type type;
 
 	std::vector<std::string> shaderInputs;
 	std::vector<std::string> body;
 
-	Value nullVall;
 	std::unordered_map<PinId, Value> cachedValues;
 
 	int nextVar = 0;
+
+	const void evaluate(NodeId nodeId)
+	{
+		auto& node = graph.findNode<ExpressionNode>(nodeId);
+		evaluate(node);
+	}
+
+	const void evaluate(ExpressionNode& node)
+	{
+		for (uint8_t inputIndex = 0; inputIndex < node.inputs.size(); inputIndex++)
+		{
+			auto& input = node.inputs.at(inputIndex);
+			input.value = evaluate(node.id.makeInput(inputIndex));
+		}
+
+		node.evaluate(*this);
+	}
 
 	const Value& evaluate(PinId pin)
 	{
@@ -23,7 +54,7 @@ struct CodeGenerator
 			}
 			else
 			{
-				return nullVall;
+				return Values::null;
 			}
 		}
 
@@ -36,9 +67,7 @@ struct CodeGenerator
 		}
 
 		const auto nodeId = pin.nodeId();
-		auto& node = graph.findNode<ExpressionNode>(nodeId);
-
-		node.evaluate(*this);
+		evaluate(nodeId);
 
 		{
 			const auto it = cachedValues.find(pin);
@@ -51,12 +80,12 @@ struct CodeGenerator
 		}
 	}
 
-	void set(PinId pin, Value value)
+	void set(PinId pin, const Value& value)
 	{
 		cachedValues[pin] = std::move(value);
 	}
 
-	void setAsVar(PinId pin, Value value)
+	void setAsVar(PinId pin, const Value& value)
 	{
 		cachedValues[pin] = addVar(value);
 	}
@@ -71,7 +100,15 @@ struct CodeGenerator
 	std::string finalize() const
 	{
 		std::string code;
-		//code += shaderInputs;
+
+		code += "#version 120\n";
+
+		for (const auto& str : shaderInputs)
+		{
+			code += str;
+			code += "\n";
+		}
+
 		code += "void main()\n{\n";
 		for (const auto& str : body)
 		{

@@ -80,6 +80,11 @@ struct PinId : SafeId<ShortId, PinId>
 		return Get();
 	}
 
+	operator bool() const
+	{
+		return Get();
+	}
+
 	using PinIndex = std::uint8_t;
 
 	static constexpr ShortId pinIndexOffset = (sizeof(ShortId) - 1) * 8;
@@ -250,7 +255,7 @@ struct Graph
 	std::vector<Node::Ptr> nodes;
 	std::set<LinkId> links;
 
-	Node& addNode(Node::Ptr&& n)
+	Node& AddNode(Node::Ptr&& n)
 	{
 		if (!n->id)
 		{

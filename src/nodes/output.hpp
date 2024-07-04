@@ -1,11 +1,77 @@
 #pragma once
 
+#include "../value.hpp"
+
 struct OutputNode : ExpressionNode
 {
 	using ExpressionNode::ExpressionNode;
 
+	CodeGenerator::Type type;
+
+	OutputNode(NodeArchetype* archetype, CodeGenerator::Type type) : ExpressionNode{ archetype }, type{ type }
+	{
+
+	}
+
 	void evaluate(CodeGenerator& generator) override
 	{
-		//generator.set(id.makeOutput(0), Value{ makeValueType<ScalarType>(), std::to_string(value) }});
+		assert(type == generator.type);
+
+		if (generator.type == CodeGenerator::Type::Vertex)
+		{
+			auto color = getInput(0);
+			auto alpha = getInput(0);
+
+			if (!color)
+			{
+				color = Value{ makeValueType<ScalarType>(), "0.5" };
+			}
+
+			if (!alpha)
+			{
+				alpha = Value{ makeValueType<ScalarType>(), "1" };
+			}
+
+			color = convert(color, makeValueType<VectorType>(static_cast<std::uint8_t>(3)));
+
+			generator.shaderInputs.push_back("uniform float time;");
+
+			generator.body.push_back("gl_FrontColor = vec4(" + color.code + ", " + alpha.code + ");");
+			generator.body.push_back("gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;");
+			generator.body.push_back("gl_TexCoord[0] = gl_TextureMatrix[0] * gl_MultiTexCoord0;");
+		}
+		else if (generator.type == CodeGenerator::Type::Fragment)
+		{
+			generator.shaderInputs.push_back("uniform sampler2D texture;");
+
+			generator.body.push_back("vec4 pixel = texture2D(texture, gl_TexCoord[0].xy);");
+			generator.body.push_back("gl_FragColor = gl_Color * pixel;");
+			//generator.body.push_back("gl_FragColor = gl_Color;");
+		}
+	}
+
+	static void registerArchetypes(ArchetypeRepo& repo)
+	{
+		repo.add<OutputNode>({
+			"",
+			"out_vertex",
+			"Vertex Out",
+			{
+				{ "Color", makeValueType<ScalarType>()},
+			},
+			{
+			}
+		}, CodeGenerator::Type::Vertex);
+
+		repo.add<OutputNode>({
+			"",
+			"out_fragment",
+			"Fragment Out",
+			{
+				{"Color", makeValueType<ScalarType>()}
+			},
+			{
+			}
+		}, CodeGenerator::Type::Fragment);
 	}
 };
