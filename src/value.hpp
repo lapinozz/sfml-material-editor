@@ -2,6 +2,7 @@
 
 #include <variant>
 #include <string>
+#include <format>
 
 struct NoneType
 {
@@ -60,6 +61,28 @@ struct ValueType : std::variant<NoneType, ScalarType, VectorType, MatrixType, Sa
 		if (const auto* t = std::get_if<ScalarType>(this))
 		{
 			return "float";
+		}
+		else if (const auto* t = std::get_if<VectorType>(this))
+		{
+			return std::format("vec{}", t->arrity);
+		}
+
+		assert(false);
+	}
+
+	ImColor toColor() const
+	{
+		if (const auto* t = std::get_if<NoneType>(this))
+		{
+			return {0.66f, 0.66f, 0.66f, 1.f};
+		}
+		else if (const auto* t = std::get_if<ScalarType>(this))
+		{
+			return { 45, 75, 196, 255};
+		}
+		else if (const auto* t = std::get_if<VectorType>(this))
+		{
+			return { 57, 206, 112, 255 };
 		}
 
 		assert(false);

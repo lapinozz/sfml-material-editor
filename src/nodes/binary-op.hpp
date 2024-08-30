@@ -63,7 +63,7 @@ struct BinaryOpNode : ExpressionNode
 		setOutput(0, Value{ aVal.type, aVal.code + " " + operatorStrings[std::to_underlying(op)] + " " + bVal.code });
 	}
 
-	void drawInputPin(const NodeArchetype::Input& input, PinId id) override
+	void drawInputPin(const Input& input, PinId id) override
 	{
 		ExpressionNode::drawInputPin(input, id);
 

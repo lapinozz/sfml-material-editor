@@ -44,6 +44,8 @@ struct OutputNode : ExpressionNode
 		{
 			generator.shaderInputs.push_back("uniform sampler2D texture;");
 
+			generator.shaderInputs.push_back("uniform float time;");
+
 			generator.body.push_back("vec4 pixel = texture2D(texture, gl_TexCoord[0].xy);");
 			generator.body.push_back("gl_FragColor = gl_Color * pixel;");
 			//generator.body.push_back("gl_FragColor = gl_Color;");

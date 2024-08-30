@@ -50,7 +50,7 @@ struct BuiltinFuncNode : ExpressionNode
 		setOutput(0, Value{ outputs[0].type, code});
 	}
 
-	void drawInputPin(const NodeArchetype::Input& input, PinId id) override
+	void drawInputPin(const Input& input, PinId id) override
 	{
 		ExpressionNode::drawInputPin(input, id);
 

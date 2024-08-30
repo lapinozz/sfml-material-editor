@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <format>
 
 #include "graph.hpp"
 #include "value.hpp"
@@ -37,10 +38,29 @@ struct CodeGenerator
 		for (uint8_t inputIndex = 0; inputIndex < node.inputs.size(); inputIndex++)
 		{
 			auto& input = node.inputs.at(inputIndex);
-			input.value = evaluate(node.id.makeInput(inputIndex));
+			auto value = evaluate(node.id.makeInput(inputIndex));
+			if (value && input.type)
+			{
+				input.value = convert(value, input.type);
+				if (!input.value)
+				{
+					input.error = std::format("Cannot convert from {} to {}", value.type.toString(), input.type.toString());
+				}
+			}
+			else
+			{
+				input.value = std::move(value);
+			}
 		}
 
 		node.evaluate(*this);
+
+		for (uint8_t outputIndex = 0; outputIndex < node.outputs.size(); outputIndex++)
+		{
+			auto& output = node.outputs.at(outputIndex);
+			setAsVar(node.id.makeOutput(outputIndex), output.value);
+			//cachedValues[node.id.makeOutput(outputIndex)] = output.value;
+		}
 	}
 
 	const Value& evaluate(PinId pin)
@@ -76,7 +96,7 @@ struct CodeGenerator
 				return it->second;
 			}
 
-			assert(false);
+			return Values::null;
 		}
 	}
 

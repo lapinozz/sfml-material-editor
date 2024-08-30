@@ -5,8 +5,8 @@
 #include "inlineFonts/includes/IconsFontAwesome6.h"
 #include "inlineFonts/includes/IconsFontAwesome6.h_fa-solid-900.ttf.h"
 
-
 #include "preview.hpp"
+#include "constants.hpp"
 
 struct MaterialEditor
 {
@@ -292,8 +292,50 @@ struct MaterialEditor
 		}
 		ed::EndDelete(); // Wrap up deletion action
 
+		//ed::PushStyleVar(ax::NodeEditor::StyleVar_LinkStrength, 10.f);
+
 		for (auto& link : graph.links)
-			ed::Link(link, link.from(), link.to());
+		{
+			const auto from = link.from();
+			const auto to = link.to();
+			const auto& node = graph.findNode<ExpressionNode>(to.nodeId());
+			const auto& input = node.inputs[to.index()];
+			const auto color = input.hasError() ? LinkColorError : LinkColor;
+
+			ed::Link(link, from, to, color, 2.f);
+		}
+
+		std::string error{};
+		if(const LinkId link = ed::GetHoveredLink())
+		{
+			const auto to = link.to();
+			const auto& node = graph.findNode<ExpressionNode>(to.nodeId());
+			const auto& input = node.inputs[to.index()];
+			if (input.hasError())
+			{
+				error = input.error;
+			}
+		}
+		else if (const PinId pin = ed::GetHoveredPin(); pin && pin.direction() == PinDirection::In)
+		{
+			const auto& node = graph.findNode<ExpressionNode>(pin.nodeId());
+			const auto& input = node.inputs[pin.index()];
+			if (input.hasError())
+			{
+				error = input.error;
+			}
+		}
+
+		if (!error.empty())
+		{
+			ed::Suspend();
+			if (ImGui::BeginTooltip())
+			{
+				ImGui::Text(error.c_str());
+				ImGui::EndTooltip();
+			}
+			ed::Resume();
+		}
 
 		ImGui::SetCursorScreenPos(cursorTopLeft);
 

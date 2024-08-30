@@ -18,7 +18,7 @@ struct ConstantNode : ExpressionNode
 
 	void evaluate(CodeGenerator& generator) override
 	{
-		//generator.set(id.makeOutput(0), Value{ type, input });
+		//setOutput(0, Value{ type, input });
 	}
 
 	void drawMiddle() override

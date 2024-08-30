@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../constants.hpp"
+
 struct CodeGenerator;
 
 struct ExpressionNode : Graph::Node
@@ -8,7 +10,13 @@ struct ExpressionNode : Graph::Node
 
 	struct Input : public NodeArchetype::Input
 	{
+		std::string error;
 		Value value;
+
+		bool hasError() const
+		{
+			return error.size() > 0;
+		}
 	};
 
 	struct Output : public NodeArchetype::Output
@@ -56,6 +64,7 @@ struct ExpressionNode : Graph::Node
 		{
 			inputs[x].link = graph.findLink(id.makeInput(x));
 			inputs[x].value = {};
+			inputs[x].error = {};
 		}
 		for (std::size_t x{}; x < outputs.size(); x++)
 		{
@@ -164,7 +173,7 @@ struct ExpressionNode : Graph::Node
 		}
 	};
 
-	virtual void drawInputPin(const NodeArchetype::Input& input, PinId id)
+	virtual void drawInputPin(const Input& input, PinId id)
 	{
 		ed::PinPivotAlignment(ImVec2(0.f, 0.5f));
 		ed::PinPivotSize(ImVec2(0, 0));
@@ -173,8 +182,15 @@ struct ExpressionNode : Graph::Node
 		ImVec2 p = ImGui::GetCursorScreenPos();
 		int size = 5;
 		auto textSize = ImGui::CalcTextSize("In");
-		const auto color = input.link ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
-		draw_list->AddCircle(ImVec2(p.x + size, p.y + textSize.y / 2), size, color);
+
+		const auto hasError = input.error.size() > 0;
+
+		if (input.link)
+		{
+			draw_list->AddCircleFilled(ImVec2(p.x + size, p.y + textSize.y / 2), size, hasError ? LinkColorError : LinkColor);
+		}
+
+		draw_list->AddCircle(ImVec2(p.x + size, p.y + textSize.y / 2), size, input.type.toColor(), 0.f, 2.f);
 		ImGui::Dummy(ImVec2(size, size));
 
 		ImGui::SameLine();
@@ -195,7 +211,7 @@ struct ExpressionNode : Graph::Node
 		}
 	};
 
-	virtual void drawOutputPin(const NodeArchetype::Output& output, PinId id)
+	virtual void drawOutputPin(const Output& output, PinId id)
 	{
 		ed::PinPivotAlignment(ImVec2(1.f, 0.5f));
 		ed::PinPivotSize(ImVec2(0, 0));
@@ -208,7 +224,7 @@ struct ExpressionNode : Graph::Node
 		ImVec2 p = ImGui::GetCursorScreenPos();
 		auto textSize = ImGui::CalcTextSize("In");
 		const auto color = output.link ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
-		draw_list->AddCircle(ImVec2(p.x + size, p.y + textSize.y / 2), size, color);
+		draw_list->AddCircleFilled(ImVec2(p.x + size, p.y + textSize.y / 2), size, output.type.toColor());
 		ImGui::Dummy(ImVec2(size * 2, size));
 	};
 
