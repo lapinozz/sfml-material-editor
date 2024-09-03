@@ -6,8 +6,8 @@ option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
 include(FetchContent)
 
-add_compile_options(-fsanitize=address)
-add_link_options(-fsanitize=address)
+#add_compile_options(-fsanitize=address)
+#add_link_options(-fsanitize=address)
 
 FetchContent_Declare(SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
@@ -43,6 +43,11 @@ target_include_directories(CMakeSFMLProject PRIVATE "${IMNOED_DIR}")
 target_link_libraries(CMakeSFMLProject PRIVATE sfml-graphics ImGui-SFML::ImGui-SFML)
 target_compile_definitions(CMakeSFMLProject PRIVATE IMGUI_DEFINE_MATH_OPERATORS)
 target_compile_features(CMakeSFMLProject PRIVATE cxx_std_23)
+
+#if (MSVC AND WIN32 AND NOT MSVC_VERSION VERSION_LESS 142)
+#    target_link_options(CMakeSFMLProject PRIVATE $<$<CONFIG:Debug>:/INCREMENTAL>)
+#    target_compile_options(CMakeSFMLProject PRIVATE $<$<CONFIG:Debug>:/ZI>)
+#endif()
 
 add_custom_command(
     TARGET CMakeSFMLProject

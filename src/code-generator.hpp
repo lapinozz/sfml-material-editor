@@ -38,28 +38,126 @@ struct CodeGenerator
 		for (uint8_t inputIndex = 0; inputIndex < node.inputs.size(); inputIndex++)
 		{
 			auto& input = node.inputs.at(inputIndex);
-			auto value = evaluate(node.id.makeInput(inputIndex));
-			if (value && input.type)
+			input.value = evaluate(node.id.makeInput(inputIndex));
+		}
+
+		const auto& archetype = *node.archetype;
+		const auto& overloads = archetype.overloads;
+		if (overloads.empty())
+		{
+			for (uint8_t inputIndex = 0; inputIndex < node.inputs.size(); inputIndex++)
 			{
-				input.value = convert(value, input.type);
-				if (!input.value)
+				auto& input = node.inputs.at(inputIndex);
+				if (input.value && input.type)
 				{
-					input.error = std::format("Cannot convert from {} to {}", value.type.toString(), input.type.toString());
+					auto value = convert(input.value, input.type);
+					if (!value)
+					{
+						input.error = std::format("Cannot convert from {} to {}", input.value.type.toString(), input.type.toString());
+					}
+
+					input.value = std::move(value);
 				}
+			}
+		}
+		else
+		{
+			int selectedOverload = -1;
+			ValueType genType{};
+
+			for (size_t overloadIndex{}; overloadIndex < overloads.size(); overloadIndex++)
+			{
+				const auto& overload = overloads[overloadIndex];
+
+				assert(node.inputs.size() == overload.inputs.size());
+
+				genType = Types::scalar;
+
+				for (uint8_t inputIndex = 0; inputIndex < node.inputs.size(); inputIndex++)
+				{
+					const auto& nodeInput = node.inputs[inputIndex];
+					const auto& overloadInput = overload.inputs[inputIndex];
+					if(!overloadInput && genType == Types::scalar && nodeInput.value)
+					{
+						genType = nodeInput.value.type;
+					}
+				}
+
+				bool matches = true;
+				for (uint8_t inputIndex = 0; inputIndex < node.inputs.size(); inputIndex++)
+				{
+					const auto& nodeInput = node.inputs[inputIndex];
+					if (!nodeInput.value)
+					{
+						continue;
+					}
+
+					const auto& overloadInput = overload.inputs[inputIndex];
+					const auto targetType = overloadInput ? overloadInput : genType;
+
+					if (!canConvert(nodeInput.value.type, targetType))
+					{
+						matches = false;
+						break;
+					}
+				}
+
+				if (matches)
+				{
+					selectedOverload = overloadIndex;
+					break;
+				}
+			}
+
+			if(selectedOverload < 0)
+			{
+				node.inputs[0].error = "No compatible overload found";
 			}
 			else
 			{
-				input.value = std::move(value);
+				const auto overload = overloads[selectedOverload];
+				for (uint8_t inputIndex = 0; inputIndex < node.inputs.size(); inputIndex++)
+				{
+					auto& nodeInput = node.inputs[inputIndex];
+
+					const auto& overloadInput = overload.inputs[inputIndex];
+					const auto targetType = overloadInput ? overloadInput : genType;
+					nodeInput.type = targetType;
+
+					if (nodeInput.value)
+					{
+						nodeInput.value = convert(nodeInput.value, nodeInput.type);
+					}
+					else if (nodeInput.type == Types::scalar || std::holds_alternative<VectorType>(nodeInput.type))
+					{
+						nodeInput.field.type = nodeInput.type;
+						nodeInput.value = nodeInput.field.toValue();
+					}
+				}
 			}
 		}
 
 		node.evaluate(*this);
 
+		constexpr size_t ExpressionVariableLengthCutoff = 15;
+
 		for (uint8_t outputIndex = 0; outputIndex < node.outputs.size(); outputIndex++)
 		{
-			auto& output = node.outputs.at(outputIndex);
-			setAsVar(node.id.makeOutput(outputIndex), output.value);
-			//cachedValues[node.id.makeOutput(outputIndex)] = output.value;
+			const auto& output = node.outputs.at(outputIndex);
+
+			if (output.linkCount <= 0)
+			{
+				continue;
+			}
+
+			if (output.linkCount > 1 || output.value.code.size() >= ExpressionVariableLengthCutoff)
+			{
+				setAsVar(node.id.makeOutput(outputIndex), output.value);
+			}
+			else
+			{
+				cachedValues[node.id.makeOutput(outputIndex)] = output.value;
+			}
 		}
 	}
 
@@ -95,9 +193,9 @@ struct CodeGenerator
 			{
 				return it->second;
 			}
-
-			return Values::null;
 		}
+
+		return Values::null;
 	}
 
 	void set(PinId pin, const Value& value)

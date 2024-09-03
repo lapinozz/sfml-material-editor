@@ -19,7 +19,7 @@ struct MaterialEditor
 	TextEditor fragmentEditor;
 	
 	ed::EditorContext* edContext{};
-	std::optional<sf::Shader> shader;
+	sf::Shader shader;
 
 	sf::Clock clock;
 	float runningTime{};
@@ -48,6 +48,7 @@ struct MaterialEditor
 
 		ed::Config config;
 		config.SettingsFile = "Simple.json";
+		config.EnableSmoothZoom = true;
 		edContext = ed::CreateEditor(&config);
 
 		const float baseFontSize = 16.f;
@@ -94,6 +95,7 @@ struct MaterialEditor
 		OutputNode::registerArchetypes(archetypes);
 		BinaryOpNode::registerArchetypes(archetypes);
 		BuiltinFuncNode::registerArchetypes(archetypes);
+		BridgeNode::registerArchetypes(archetypes);
 	}
 
 	void processEvents()
@@ -162,6 +164,8 @@ struct MaterialEditor
 
 	void drawNodeEditor()
 	{
+		const auto mousePos = ImGui::GetMousePos();
+
 		ImGui::BeginChild("wow", {}, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
 		ImGui::Separator();
 		ed::Begin("My Editor", ImVec2(0.0, 0.0f));
@@ -180,14 +184,18 @@ struct MaterialEditor
 			static_cast<ExpressionNode&>(*node).update(graph);
 		}
 
+		for (auto& link : graph.links)
+		{
+			graph.findNode<ExpressionNode>(link.to().nodeId()).inputs[link.to().index()].link = link;
+			graph.findNode< ExpressionNode>(link.from().nodeId()).outputs[link.from().index()].linkCount++;
+		}
+
 		for (auto& node : graph.nodes)
 		{
 			if (!node)
 			{
 				continue;
 			}
-
-			static_cast<ExpressionNode&>(*node).draw();
 
 			if (auto* n = dynamic_cast<OutputNode*>(node.get()))
 			{
@@ -202,6 +210,16 @@ struct MaterialEditor
 			}
 		}
 
+		for (auto& node : graph.nodes)
+		{
+			if (!node)
+			{
+				continue;
+			}
+
+			static_cast<ExpressionNode&>(*node).draw();
+		}
+
 		auto newVertexCode = vertexGen.finalize();
 		auto newFragmentCode = fragmentGen.finalize();
 		if (vertexCode != newVertexCode || fragmentCode != newFragmentCode)
@@ -212,13 +230,10 @@ struct MaterialEditor
 			vertexEditor.SetText(vertexCode);
 			fragmentEditor.SetText(fragmentCode);
 
-			shader = sf::Shader::loadFromMemory(vertexCode, fragmentCode);
+			(void)shader.loadFromMemory(vertexCode, fragmentCode);
 		}
 
-		if (shader)
-		{
-			shader->setUniform("time", runningTime);
-		}
+		shader.setUniform("time", runningTime);
 
 		if (ed::BeginCreate())
 		{
@@ -291,6 +306,17 @@ struct MaterialEditor
 			}
 		}
 		ed::EndDelete(); // Wrap up deletion action
+
+		if (const LinkId link = ed::GetDoubleClickedLink())
+		{
+			auto& node = static_cast<ExpressionNode&>(graph.AddNode(archetypes.archetypes["bridge"].createNode()));
+			ed::SetNodePosition(node.id, ed::ScreenToCanvas(mousePos));
+
+			graph.addLink(link.from(), node.id.makeInput(0));
+			graph.addLink(node.id.makeOutput(0), link.to());
+
+			graph.removeLink(link);
+		}
 
 		//ed::PushStyleVar(ax::NodeEditor::StyleVar_LinkStrength, 10.f);
 

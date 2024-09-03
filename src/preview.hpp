@@ -110,14 +110,12 @@ struct Preview
 		}
 	}
 
-	Preview() : 
-		previewTexture{ *sf::RenderTexture::create({ 1, 1 }) },
-		previewFullscreenTexture{ *sf::RenderTexture::create({ 1, 1 }) }
+	Preview()
 	{
 		updateShape();
 	}
 
-	void update(std::optional<sf::Shader>& shader)
+	void update(sf::Shader& shader)
 	{
 		ImGui::Checkbox("Fullscreen", &isFullScreenMode);
 		ImGui::SameLine();
@@ -162,7 +160,7 @@ struct Preview
 				previewView = sf::View({}, contentSize);
 				zoom = 1.f;
 
-				previewTexture = *previewTexture.create(sf::Vector2u(contentSize.x, contentSize.y));
+				(void)previewTexture.resize(sf::Vector2u(contentSize.x, contentSize.y));
 			}
 
 			previewTexture.clear();
@@ -171,9 +169,9 @@ struct Preview
 			previewTexture.setView(renderView);
 
 			sf::RenderStates states;
-			if (shader && !isFullScreenMode)
+			if (!isFullScreenMode)
 			{
-				states.shader = &*shader;
+				states.shader = &shader;
 			}
 
 			previewTexture.draw(*shape);
@@ -184,18 +182,16 @@ struct Preview
 			{
 				if (previewFullscreenTexture.getSize() != previewTexture.getSize())
 				{
-					previewFullscreenTexture = *previewTexture.create(sf::Vector2u(contentSize.x, contentSize.y));
+					(void)previewFullscreenTexture.resize(sf::Vector2u(contentSize.x, contentSize.y));
 				}
 
 				sf::RectangleShape rect(contentSize);
 				rect.setFillColor(sf::Color::White);
 				rect.setTexture(&previewTexture.getTexture(), true);
 				sf::RenderStates states;
-				if (shader)
-				{
-					shader->setUniform("texture", previewTexture.getTexture());
-					states.shader = &*shader;
-				}
+
+				shader.setUniform("texture", previewTexture.getTexture());
+				states.shader = &shader;
 
 				previewFullscreenTexture.setView({ contentSize / 2, contentSize });
 				previewFullscreenTexture.draw(rect, states);

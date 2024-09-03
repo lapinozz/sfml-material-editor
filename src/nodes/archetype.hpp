@@ -16,23 +16,24 @@ struct NodeArchetype
 	{
 		std::string name;
 		ValueType type;
-
-		bool optional = false;
-
-		LinkId link{0};
 	};
 
 	struct Output
 	{
 		std::string name;
 		ValueType type;
-		bool saveToVar = true;
-
-		LinkId link{ 0 };
 	};
 
 	std::vector<Input> inputs;
 	std::vector<Output> outputs;
+
+	struct Overload
+	{
+		std::vector<ValueType> inputs;
+		std::vector<ValueType> outputs;
+	};
+
+	std::vector<Overload> overloads;
 
 	std::function<Graph::Node::Ptr()> createNode;
 };

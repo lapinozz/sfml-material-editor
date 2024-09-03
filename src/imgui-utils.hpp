@@ -1,5 +1,11 @@
 #pragma once
 
+#include <string>
+#include <array>
+#include <cstdint>
+
+#include "value.hpp"
+
 struct FloatField
 {
 	float value{};
@@ -18,7 +24,15 @@ struct FloatField
 
 	Value toValue() const
 	{
-		return Value{ makeValueType<ScalarType>(), std::format("{:1f}f", value) };
+		auto str = std::format("{:1f}", value);
+		while (str.length() > 0 && str.back() == '0')
+		{
+			str.pop_back();
+		}
+
+		str += 'f';
+
+		return Value{ makeValueType<ScalarType>(), str };
 	}
 
 	void update()
@@ -56,6 +70,74 @@ struct FloatField
 			fieldWidth = ImGui::CalcTextSize(buf.data()).x + 10;
 
 			widthDirty = false;
+		}
+	}
+};
+
+struct ValueField
+{
+	std::array<FloatField, 4> fields;
+	ValueType type;
+
+	Value toValue() const
+	{
+		if (type == Types::scalar)
+		{
+			return fields[0].toValue();
+		}
+		else if (type == Types::vec2)
+		{
+			return { type, std::format("vec2({}, {})", fields[0].toValue().code, fields[1].toValue().code) };
+		}
+		else if (type == Types::vec3)
+		{
+			return { type, std::format("vec3({}, {}, {})", fields[0].toValue().code, fields[1].toValue().code, fields[2].toValue().code) };
+		}
+		else if (type == Types::vec4)
+		{
+			return { type, std::format("vec4({}, {}, {}, {})", fields[0].toValue().code, fields[1].toValue().code, fields[2].toValue().code, fields[3].toValue().code) };
+		}
+
+		assert(false);
+	}
+
+	void update(ValueType inType)
+	{
+		type = inType;
+		if (!type)
+		{
+			return;
+		}
+
+		int fieldCount{};
+
+		if (type == Types::scalar)
+		{
+			fieldCount = 1;
+		}
+		else if (type == Types::vec2)
+		{
+			fieldCount = 2;
+		}
+		else if (type == Types::vec3)
+		{
+			fieldCount = 3;
+		}
+		else if (type == Types::vec4)
+		{
+			fieldCount = 4;
+		}
+
+		assert(fieldCount >= 1 && fieldCount <= 4);
+
+		for (int x = 0; x < fieldCount; x++)
+		{
+			fields[x].update();
+
+			if (x != fieldCount - 1)
+			{
+				ImGui::SameLine();
+			}
 		}
 	}
 };

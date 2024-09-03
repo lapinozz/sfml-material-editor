@@ -41,9 +41,6 @@ struct BinaryOpNode : ExpressionNode
 
 	Op op;
 
-	FloatField fieldA;
-	FloatField fieldB;
-
 	BinaryOpNode(NodeArchetype* archetype, Op op) : ExpressionNode{ archetype }, op{ op }
 	{
 
@@ -51,68 +48,61 @@ struct BinaryOpNode : ExpressionNode
 
 	void evaluate(CodeGenerator& generator) override
 	{
+		auto& ia = inputs.at(0);
+		auto& ib = inputs.at(1);
+
 		const auto& a = getInput(0);
 		const auto& b = getInput(1);
 
+		//assert(aVal.type == bVal.type);
 
-		const auto& aVal = a ? a : fieldA.toValue();
-		const auto& bVal = b ? b : fieldB.toValue();
-
-		assert(aVal.type == bVal.type);
-
-		setOutput(0, Value{ aVal.type, aVal.code + " " + operatorStrings[std::to_underlying(op)] + " " + bVal.code });
+		setOutput(0, Value{ a.type, a.code + " " + operatorStrings[std::to_underlying(op)] + " " + b.code });
 	}
-
-	void drawInputPin(const Input& input, PinId id) override
-	{
-		ExpressionNode::drawInputPin(input, id);
-
-		if (!input.link)
-		{
-			ImGui::SameLine();
-
-			id.index() == 0 ? fieldA.update() : fieldB.update();
-		}
-	};
 
 	void serialize(Serializer& s) override
 	{
 		ExpressionNode::serialize(s);
-
-		s.serialize("fieldA", fieldA);
-		s.serialize("fieldB", fieldB);
 	}
 
 	static void registerArchetypes(ArchetypeRepo& repo)
 	{
-		const auto addNode = [&](const auto& cat, const auto& id, const auto& name, const auto& op)
+		const auto addNode = [&](const auto& cat, const auto& id, const auto& name, const auto overloads, const auto& op)
 		{
 			repo.add<BinaryOpNode>({
 				cat,
 				id,
 				name,
 				{
-					{ "A", makeValueType<ScalarType>()},
-					{ "B", makeValueType<ScalarType>()}
+					{ "A", makeValueType<NoneType>()},
+					{ "B", makeValueType<NoneType>()}
 				},
 				{
 					{ "", makeValueType<ScalarType>()},
-				}
+				},
+				overloads
 			}, op);
 		};
 
-		addNode("Maths", "add", "Add", Op::Add);
-		addNode("Maths", "sub", "Subtract", Op::Sub);
-		addNode("Maths", "mul", "Multiply", Op::Mul);
-		addNode("Maths", "div", "Divide", Op::Div);
+		std::vector<NodeArchetype::Overload> overloads
+		{
+			{{Types::scalar, Types::scalar}, {Types::scalar}},
+			{{Types::none, Types::none}, {Types::none} },
+		};
 
-		addNode("Comparison", "less", "<", Op::Less);
-		addNode("Comparison", "lessEqual", "<=", Op::LessEqual);
-		addNode("Comparison", "greater", ">", Op::Greater);
-		addNode("Comparison", "greaterEqual", ">=", Op::GreaterEqual);
-		addNode("Comparison", "equal", "==", Op::Equal);
-		addNode("Comparison", "logicAnd", "&&", Op::LogicAnd);
-		addNode("Comparison", "logicOr", "||", Op::LogicOr);
-		addNode("Comparison", "logicExclusiveOr", "^^", Op::LogicExclusiveOr);
+		std::vector<NodeArchetype::Overload> overloadsEmpty;
+
+		addNode("Maths", "add", "Add", overloads, Op::Add);
+		addNode("Maths", "sub", "Subtract", overloadsEmpty, Op::Sub);
+		addNode("Maths", "mul", "Multiply", overloadsEmpty, Op::Mul);
+		addNode("Maths", "div", "Divide", overloadsEmpty, Op::Div);
+
+		addNode("Comparison", "less", "<", overloadsEmpty, Op::Less);
+		addNode("Comparison", "lessEqual", "<=", overloadsEmpty, Op::LessEqual);
+		addNode("Comparison", "greater", ">", overloadsEmpty, Op::Greater);
+		addNode("Comparison", "greaterEqual", ">=", overloadsEmpty, Op::GreaterEqual);
+		addNode("Comparison", "equal", "==", overloadsEmpty, Op::Equal);
+		addNode("Comparison", "logicAnd", "&&", overloadsEmpty, Op::LogicAnd);
+		addNode("Comparison", "logicOr", "||", overloadsEmpty, Op::LogicOr);
+		addNode("Comparison", "logicExclusiveOr", "^^", overloadsEmpty, Op::LogicExclusiveOr);
 	}
 };

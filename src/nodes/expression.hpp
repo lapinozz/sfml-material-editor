@@ -13,6 +13,10 @@ struct ExpressionNode : Graph::Node
 		std::string error;
 		Value value;
 
+		LinkId link{ 0 };
+
+		ValueField field;
+
 		bool hasError() const
 		{
 			return error.size() > 0;
@@ -22,6 +26,8 @@ struct ExpressionNode : Graph::Node
 	struct Output : public NodeArchetype::Output
 	{
 		Value value;
+
+		int linkCount{};
 	};
 
 	std::vector<Input> inputs;
@@ -62,13 +68,13 @@ struct ExpressionNode : Graph::Node
 	{
 		for (std::size_t x{}; x < inputs.size(); x++)
 		{
-			inputs[x].link = graph.findLink(id.makeInput(x));
+			inputs[x].link = {};
 			inputs[x].value = {};
 			inputs[x].error = {};
 		}
 		for (std::size_t x{}; x < outputs.size(); x++)
 		{
-			outputs[x].link = graph.findLink(id.makeOutput(x));
+			outputs[x].linkCount = {};
 			outputs[x].value = {};
 		}
 	}
@@ -165,7 +171,7 @@ struct ExpressionNode : Graph::Node
 	{
 		for (std::size_t x{}; x < inputs.size(); x++)
 		{
-			const auto& input = inputs[x];
+			auto& input = inputs[x];
 			const auto pinId = id.makeInput(x);
 			ed::BeginPin(pinId, ed::PinKind::Input);
 			drawInputPin(input, pinId);
@@ -173,7 +179,7 @@ struct ExpressionNode : Graph::Node
 		}
 	};
 
-	virtual void drawInputPin(const Input& input, PinId id)
+	virtual void drawInputPin(Input& input, PinId id)
 	{
 		ed::PinPivotAlignment(ImVec2(0.f, 0.5f));
 		ed::PinPivotSize(ImVec2(0, 0));
@@ -190,11 +196,20 @@ struct ExpressionNode : Graph::Node
 			draw_list->AddCircleFilled(ImVec2(p.x + size, p.y + textSize.y / 2), size, hasError ? LinkColorError : LinkColor);
 		}
 
-		draw_list->AddCircle(ImVec2(p.x + size, p.y + textSize.y / 2), size, input.type.toColor(), 0.f, 2.f);
+		const auto color = input.type ? input.type.toColor() : input.value.type.toColor();
+
+		draw_list->AddCircle(ImVec2(p.x + size, p.y + textSize.y / 2), size, color, 0.f, 2.f);
 		ImGui::Dummy(ImVec2(size, size));
 
 		ImGui::SameLine();
 		ImGui::Text(input.name.c_str());
+
+		if (!input.link)
+		{
+			ImGui::SameLine();
+
+			input.field.update(input.type);
+		}
 	};
 
 	virtual void drawOutputPins()
@@ -223,7 +238,7 @@ struct ExpressionNode : Graph::Node
 		ImDrawList* draw_list = ImGui::GetWindowDrawList();
 		ImVec2 p = ImGui::GetCursorScreenPos();
 		auto textSize = ImGui::CalcTextSize("In");
-		const auto color = output.link ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
+		const auto color = output.linkCount ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
 		draw_list->AddCircleFilled(ImVec2(p.x + size, p.y + textSize.y / 2), size, output.type.toColor());
 		ImGui::Dummy(ImVec2(size * 2, size));
 	};

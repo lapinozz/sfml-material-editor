@@ -16,14 +16,14 @@ struct ScalarType
 
 struct VectorType
 {
-	uint8_t arrity;
+	uint8_t arrity{};
 	bool operator==(const VectorType&) const = default;
 };
 
 struct MatrixType
 {
-	uint8_t x;
-	uint8_t y;
+	uint8_t x{};
+	uint8_t y{};
 
 	bool operator==(const MatrixType&) const = default;
 };
@@ -101,6 +101,33 @@ constexpr ValueType makeArrayValueType(std::uint16_t arrity, Args...args)
 	return { arrity, T{args...} };
 }
 
+namespace Types
+{
+	static inline ValueType none{ makeValueType<NoneType>() };
+	static inline ValueType scalar{ makeValueType<ScalarType>() };
+	static inline ValueType vec2{ makeValueType<VectorType>(uint8_t{2}) };
+	static inline ValueType vec3{ makeValueType<VectorType>(uint8_t{3}) };
+	static inline ValueType vec4{ makeValueType<VectorType>(uint8_t{4}) };
+}
+
+bool canConvert(ValueType from, ValueType to)
+{
+	if (from == to)
+	{
+		return true;
+	}
+
+	if (auto* t1 = std::get_if<ScalarType>(&from))
+	{
+		if (auto* t2 = std::get_if<VectorType>(&to))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 struct Value
 {
 	ValueType type;
@@ -140,8 +167,8 @@ Value convert(const Value& value, const ValueType& type)
 			code += "(";
 			for (std::size_t x = 0; x < t2->arrity - 1; x++)
 			{
-				code += value.code;
-				code += ",";
+				//code += value.code;
+				//code += ",";
 			}
 			code += value.code;
 			code += ")";
