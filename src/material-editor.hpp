@@ -186,8 +186,8 @@ struct MaterialEditor
 
 		for (auto& link : graph.links)
 		{
-			graph.findNode<ExpressionNode>(link.to().nodeId()).inputs[link.to().index()].link = link;
-			graph.findNode< ExpressionNode>(link.from().nodeId()).outputs[link.from().index()].linkCount++;
+			graph.getNode<ExpressionNode>(link.to().nodeId()).inputs[link.to().index()].link = link;
+			graph.getNode< ExpressionNode>(link.from().nodeId()).outputs[link.from().index()].linkCount++;
 		}
 
 		for (auto& node : graph.nodes)
@@ -242,7 +242,32 @@ struct MaterialEditor
 			{
 				if (inputPinId && outputPinId)
 				{
-					const auto valid = graph.canAddLink(inputPinId, outputPinId);
+					const auto canAddLink = [&](PinId in, PinId out)
+					{
+						if (in == out)
+						{
+							return false;
+						}
+
+						if (in.direction() == out.direction())
+						{
+							return false;
+						}
+
+						if (in.nodeId() == out.nodeId())
+						{
+							return false;
+						}
+
+						if (graph.hasLink({in, out}))
+						{
+							return false;
+						}
+
+						return true;
+					};
+
+					const auto valid = canAddLink(inputPinId, outputPinId);
 					if (ed::AcceptNewItem(valid ? ImVec4(255, 255, 255, 255) : ImVec4(255, 0, 0, 255)))
 					{
 						if (valid)
@@ -324,7 +349,7 @@ struct MaterialEditor
 		{
 			const auto from = link.from();
 			const auto to = link.to();
-			const auto& node = graph.findNode<ExpressionNode>(to.nodeId());
+			const auto& node = graph.getNode<ExpressionNode>(to.nodeId());
 			const auto& input = node.inputs[to.index()];
 			const auto color = input.hasError() ? LinkColorError : LinkColor;
 
@@ -335,7 +360,7 @@ struct MaterialEditor
 		if(const LinkId link = ed::GetHoveredLink())
 		{
 			const auto to = link.to();
-			const auto& node = graph.findNode<ExpressionNode>(to.nodeId());
+			const auto& node = graph.getNode<ExpressionNode>(to.nodeId());
 			const auto& input = node.inputs[to.index()];
 			if (input.hasError())
 			{
@@ -344,7 +369,7 @@ struct MaterialEditor
 		}
 		else if (const PinId pin = ed::GetHoveredPin(); pin && pin.direction() == PinDirection::In)
 		{
-			const auto& node = graph.findNode<ExpressionNode>(pin.nodeId());
+			const auto& node = graph.getNode<ExpressionNode>(pin.nodeId());
 			const auto& input = node.inputs[pin.index()];
 			if (input.hasError())
 			{

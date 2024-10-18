@@ -13,27 +13,35 @@ struct BridgeNode : ExpressionNode
 
 	void draw() override
 	{
-		ed::PushStyleVar(ed::StyleVar_NodePadding, ImVec4(3, -1, 3, 3));
+		ed::PushStyleVar(ed::StyleVar_NodePadding, ImVec4(3, 3, 3, 3));
 
 		ImGui::PushID(id.Get());
 		ed::BeginNode(id);
 
-		ed::BeginPin(id.makeInput(0), ed::PinKind::Input);
+		float size = 4.f;
 
-		ed::PinPivotAlignment(ImVec2(0.f, 0.50f));
-		ed::PinPivotSize(ImVec2(0, 0));
+		const auto cursorPos = ImGui::GetCursorScreenPos();
 
-		ed::EndPin();
+		auto color = LinkColor;
+		if (PinId{ ed::GetHoveredPin() } == id.makeInput(0) || PinId{ ed::GetHoveredPin() } == id.makeOutput(0))
+		{
+			color.Value.x *= 0.75f;
+			color.Value.y *= 0.75f;
+			color.Value.z *= 0.75f;
+		}
+		ImGui::GetWindowDrawList()->AddCircleFilled(ImVec2(cursorPos.x + 3.5f, cursorPos.y + 3.5f), size, color);
 
-		ed::BeginPin(id.makeOutput(0), ed::PinKind::Output);
-
-		ed::PinPivotAlignment(ImVec2(0.f, 0.05f));
-		ed::PinPivotSize(ImVec2(0, 0));
-
-		ImGui::cursor
 		ImGui::Dummy(ImVec2(7.5f, 7.5f));
 
-		ed::EndPin();
+		for (int x = 0; x < 2; x++)
+		{
+			ImGui::SetCursorScreenPos(cursorPos);
+			ed::BeginPin(x == 0 ? id.makeInput(0) : id.makeOutput(0), x == 0 ? ed::PinKind::Input : ed::PinKind::Output);
+
+			ed::PinRect(cursorPos, cursorPos + ImVec2{ size * 2, size * 2 } - ImVec2(0.5f, 0.5f));
+
+			ed::EndPin();
+		}
 
 		ed::EndNode();
 		ImGui::PopID();

@@ -265,12 +265,21 @@ struct Graph
 	}
 
 	template<typename T>
-	T& findNode(NodeId id)
+	T* findNode(NodeId id)
 	{
 		auto it = std::ranges::find_if(nodes, [&](auto& node) {return id == node->id; });
-		assert(it != nodes.end());
+		if (it == nodes.end())
+		{
+			return nullptr;
+		}
 
-		auto* ptr = dynamic_cast<T*>(it->get());
+		return dynamic_cast<T*>(it->get());
+	}
+
+	template<typename T>
+	T& getNode(NodeId id)
+	{
+		auto* ptr = findNode<T>(id);
 		assert(ptr);
 
 		return *ptr;
@@ -344,29 +353,9 @@ struct Graph
 		nodes.erase(it);
 	}
 
-	bool canAddLink(PinId in, PinId out)
+	bool hasLink(LinkId link)
 	{
-		if (in == out)
-		{
-			return false;
-		}
-
-		if (in.direction() == out.direction())
-		{
-			return false;
-		}
-
-		if (in.nodeId() == out.nodeId())
-		{
-			return false;
-		}
-
-		if (std::ranges::find(links, LinkId{ out, in }) != links.end())
-		{
-			return false;
-		}
-
-		return true;
+		return std::ranges::contains(links, link);
 	}
 };
 

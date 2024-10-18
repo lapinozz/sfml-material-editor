@@ -29,7 +29,7 @@ struct CodeGenerator
 
 	const void evaluate(NodeId nodeId)
 	{
-		auto& node = graph.findNode<ExpressionNode>(nodeId);
+		auto& node = graph.getNode<ExpressionNode>(nodeId);
 		evaluate(node);
 	}
 
