@@ -237,11 +237,52 @@ struct MaterialEditor
 
 		if (ed::BeginCreate())
 		{
-			ed::PinId inputPinId, outputPinId;
-			if (ed::QueryNewLink(&inputPinId, &outputPinId, ImVec4(255, 0, 0, 255)))
+			ed::PinId edInputPinId, edOutputPinId;
+			if (ed::QueryNewLink(&edInputPinId, &edOutputPinId, ImVec4(255, 0, 0, 255)))
 			{
+				PinId inputPinId{ edInputPinId };
+				PinId outputPinId{ edOutputPinId };
+
+				auto* inputBridge = inputPinId ? graph.findNode<BridgeNode>(inputPinId.nodeId()) : nullptr;
+				auto* outputBridge = outputPinId ? graph.findNode<BridgeNode>(outputPinId.nodeId()) : nullptr;
+
 				if (inputPinId && outputPinId)
 				{
+					if (inputPinId == outputPinId)
+					{
+						if (inputBridge)
+						{
+							inputBridge->connectionMode = BridgeNode::ConnectionMode::Neutral;
+						}
+					}
+					else if(inputBridge && outputBridge)
+					{
+						inputBridge->connectionMode = BridgeNode::ConnectionMode::Output;
+						outputBridge->connectionMode = BridgeNode::ConnectionMode::Input;
+					}
+					else
+					{
+						if (inputBridge)
+						{
+							inputBridge->connectionMode = outputPinId.direction() == PinDirection::In ? BridgeNode::ConnectionMode::Output : BridgeNode::ConnectionMode::Input;
+						}
+
+						if (outputBridge)
+						{
+							outputBridge->connectionMode = inputPinId.direction() == PinDirection::In ? BridgeNode::ConnectionMode::Output : BridgeNode::ConnectionMode::Input;
+						}
+					}
+
+					if (outputBridge)
+					{
+						outputPinId = outputBridge->connectionMode == BridgeNode::ConnectionMode::Output ? outputPinId.nodeId().makeOutput(0) : outputPinId.nodeId().makeInput(0);
+					}
+
+					if (inputBridge)
+					{
+						inputPinId = inputBridge->connectionMode == BridgeNode::ConnectionMode::Output ? inputPinId.nodeId().makeOutput(0) : inputPinId.nodeId().makeInput(0);
+					}
+					
 					const auto canAddLink = [&](PinId in, PinId out)
 					{
 						if (in == out)
@@ -272,7 +313,7 @@ struct MaterialEditor
 					{
 						if (valid)
 						{
-							const auto oldLink = PinId{ outputPinId }.direction() == PinDirection::In ? graph.findLink(outputPinId) : graph.findLink(inputPinId);
+							const auto oldLink = outputPinId.direction() == PinDirection::In ? graph.findLink(outputPinId) : graph.findLink(inputPinId);
 							if (oldLink)
 							{
 								graph.removeLink(oldLink);
