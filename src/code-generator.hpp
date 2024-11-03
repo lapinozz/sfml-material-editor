@@ -128,7 +128,7 @@ struct CodeGenerator
 					{
 						nodeInput.value = convert(nodeInput.value, nodeInput.type);
 					}
-					else if (nodeInput.type == Types::scalar || std::holds_alternative<VectorType>(nodeInput.type))
+					else if (std::holds_alternative<GenType>(nodeInput.type))
 					{
 						nodeInput.field.type = nodeInput.type;
 						nodeInput.value = nodeInput.field.toValue();

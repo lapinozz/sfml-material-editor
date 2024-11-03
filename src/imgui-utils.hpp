@@ -32,7 +32,7 @@ struct FloatField
 
 		str += 'f';
 
-		return Value{ makeValueType<ScalarType>(), str };
+		return Value{ Types::scalar, str };
 	}
 
 	void update()

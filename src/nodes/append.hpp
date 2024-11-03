@@ -17,11 +17,7 @@ struct AppendNode : ExpressionNode
 		int arrityA{};
 		int arrityB{};
 
-		if (const auto* t = std::get_if<ScalarType>(&a.type))
-		{
-			arrityA = 1;
-		}
-		else if (const auto* t = std::get_if<VectorType>(&a.type))
+		if (const auto* t = std::get_if<GenType>(&a.type))
 		{
 			arrityA = t->arrity;
 		}
@@ -31,12 +27,7 @@ struct AppendNode : ExpressionNode
 			return;
 		}
 
-
-		if (const auto* t = std::get_if<ScalarType>(&b.type))
-		{
-			arrityB = 1;
-		}
-		else if (const auto* t = std::get_if<VectorType>(&b.type))
+		if (const auto* t = std::get_if<GenType>(&b.type))
 		{
 			arrityB = t->arrity;
 		}
@@ -54,7 +45,7 @@ struct AppendNode : ExpressionNode
 			return;
 		}
 
-		const auto resultType = makeValueType<VectorType>(totalArrity);
+		const auto resultType = Types::makeVec(totalArrity);
 		outputs.at(0).type = resultType;
 
 		setOutput(0, Value{ resultType, resultType.toString() + "(" + a.code + ", " + b.code + ")"});

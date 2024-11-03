@@ -48,7 +48,7 @@ struct MakeVecNode : ExpressionNode
 		}
 
 		value.code += ")";
-		value.type = makeValueType<VectorType>(arrity);
+		value.type = Types::makeVec(arrity);
 
 		setOutput(0, value);
 	}
@@ -61,7 +61,7 @@ struct MakeVecNode : ExpressionNode
 
 			for (uint8_t x = 0; x < arrity; x++)
 			{
-				inputs.push_back({ std::string(1, "XYZA"[x]), makeValueType<ScalarType>() });
+				inputs.push_back({ std::string(1, "XYZA"[x]), Types::scalar });
 			}
 
 			repo.add<MakeVecNode>({
@@ -70,7 +70,7 @@ struct MakeVecNode : ExpressionNode
 				"Make Vec" + std::to_string(arrity),
 				inputs,
 				{
-					{ "", makeValueType<VectorType>(arrity)}
+					{ "", Types::makeVec(arrity)}
 				}
 			}, arrity);
 		}

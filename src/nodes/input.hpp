@@ -28,9 +28,9 @@ struct InputNode : ExpressionNode
 			{
 			},
 			{
-				{ "", makeValueType<ScalarType>()}
+				{ "", Types::scalar}
 			}
-		}, makeValueType<ScalarType>(), "time");
+		}, Types::scalar, "time");
 
 		repo.add<InputNode>({
 			"Inputs",
@@ -39,8 +39,8 @@ struct InputNode : ExpressionNode
 			{
 			},
 			{
-				{ "", makeValueType<ScalarType>()}
+				{ "", Types::scalar}
 			}
-		}, makeValueType<VectorType>((uint8_t)2), "gl_TexCoord[0].xy");
+		}, Types::makeVec(uint8_t{2}), "gl_TexCoord[0].xy");
 	}
 };

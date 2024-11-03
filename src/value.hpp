@@ -9,15 +9,10 @@ struct NoneType
 	bool operator==(const NoneType&) const = default;
 };
 
-struct ScalarType
-{
-	bool operator==(const ScalarType&) const = default;
-};
-
-struct VectorType
+struct GenType
 {
 	uint8_t arrity{};
-	bool operator==(const VectorType&) const = default;
+	bool operator==(const GenType&) const = default;
 };
 
 struct MatrixType
@@ -33,17 +28,21 @@ struct SamplerType
 	bool operator==(const SamplerType&) const = default;
 };
 
-struct ValueType : std::variant<NoneType, ScalarType, VectorType, MatrixType, SamplerType>
+struct ArrayType
 {
-	std::uint16_t arrity = 0;
+	//std::unique_ptr<struct ValueType> innerType;
+	bool operator==(const ArrayType&) const = default;
+};
 
+struct ValueType : std::variant<NoneType, GenType, MatrixType, SamplerType, ArrayType>
+{
 	constexpr ValueType() : variant{ NoneType{} }
 	{
 
 	}
 
 	template<typename...Args>
-	constexpr ValueType(std::uint16_t arrity, Args...args) : arrity{ arrity }, variant{ args... }
+	constexpr ValueType(Args...args) : variant{ args... }
 	{
 
 	}
@@ -58,13 +57,16 @@ struct ValueType : std::variant<NoneType, ScalarType, VectorType, MatrixType, Sa
 	std::string toString() const
 	{
 		assert(index() > 0);
-		if (const auto* t = std::get_if<ScalarType>(this))
+		if (const auto* t = std::get_if<GenType>(this))
 		{
-			return "float";
-		}
-		else if (const auto* t = std::get_if<VectorType>(this))
-		{
-			return std::format("vec{}", t->arrity);
+			if (t->arrity == 1)
+			{
+				return "float";
+			}
+			else
+			{
+				return std::format("vec{}", t->arrity);
+			}
 		}
 
 		assert(false);
@@ -76,28 +78,36 @@ struct ValueType : std::variant<NoneType, ScalarType, VectorType, MatrixType, Sa
 		{
 			return {0.66f, 0.66f, 0.66f, 1.f};
 		}
-		else if (const auto* t = std::get_if<ScalarType>(this))
+		else if (const auto* t = std::get_if<GenType>(this))
 		{
-			return { 45, 75, 196, 255};
-		}
-		else if (const auto* t = std::get_if<VectorType>(this))
-		{
-			return { 57, 206, 112, 255 };
+			if (t->arrity == 1)
+			{
+				return { 45, 75, 196, 255 };
+			}
+			else
+			{
+				return { 57, 206, 112, 255 };
+			}
 		}
 
 		assert(false);
 	}
 
-	bool isGenType() const
+	bool isScalar() const
 	{
-		if (std::holds_alternative<ScalarType>(*this))
+		if (const auto* t = std::get_if<GenType>(this))
 		{
-			return true;
+			return t->arrity == 1;
 		}
-		else if (std::holds_alternative<VectorType>(*this))
 
+		return false;
+	}
+
+	bool isVector() const
+	{
+		if (const auto* t = std::get_if<GenType>(this))
 		{
-			return true;
+			return t->arrity > 1;
 		}
 
 		return false;
@@ -107,22 +117,27 @@ struct ValueType : std::variant<NoneType, ScalarType, VectorType, MatrixType, Sa
 template<typename T, typename...Args>
 constexpr ValueType makeValueType(Args...args)
 {
-	return { 0, T{args...} };
+	return T{args...};
 }
 
 template<typename T, typename...Args>
 constexpr ValueType makeArrayValueType(std::uint16_t arrity, Args...args)
 {
-	return { arrity, T{args...} };
+	return { ArrayType{std::make_unique<ValueType>(T{args...})}};
 }
 
 namespace Types
 {
 	static inline ValueType none{ makeValueType<NoneType>() };
-	static inline ValueType scalar{ makeValueType<ScalarType>() };
-	static inline ValueType vec2{ makeValueType<VectorType>(uint8_t{2}) };
-	static inline ValueType vec3{ makeValueType<VectorType>(uint8_t{3}) };
-	static inline ValueType vec4{ makeValueType<VectorType>(uint8_t{4}) };
+	static inline ValueType scalar{ makeValueType<GenType>(uint8_t{1}) };
+	static inline ValueType vec2{ makeValueType<GenType>(uint8_t{2}) };
+	static inline ValueType vec3{ makeValueType<GenType>(uint8_t{3}) };
+	static inline ValueType vec4{ makeValueType<GenType>(uint8_t{4}) };
+
+	ValueType makeVec(uint8_t arrity)
+	{
+		return makeValueType<GenType>(arrity);
+	};
 }
 
 bool canConvert(ValueType from, ValueType to)
@@ -132,9 +147,9 @@ bool canConvert(ValueType from, ValueType to)
 		return true;
 	}
 
-	if (auto* t1 = std::get_if<ScalarType>(&from))
+	if (from == Types::scalar)
 	{
-		if (auto* t2 = std::get_if<VectorType>(&to))
+		if (to != Types::scalar && std::holds_alternative<GenType>(to))
 		{
 			return true;
 		}
@@ -162,7 +177,7 @@ struct Value
 namespace Values
 {
 	static inline Value null{};
-	static inline Value zero{makeValueType<ScalarType>(), "0.0f"};
+	static inline Value zero{Types::scalar, "0.0f"};
 }
 
 Value convert(const Value& value, const ValueType& type)
@@ -172,9 +187,9 @@ Value convert(const Value& value, const ValueType& type)
 		return value;
 	}
 
-	if (auto* t1 = std::get_if<ScalarType>(&value.type))
+	if (value.type == Types::scalar)
 	{
-		if (auto* t2 = std::get_if<VectorType>(&type))
+		if (auto* t2 = std::get_if<GenType>(&type))
 		{
 			std::string code;
 			code += "vec";

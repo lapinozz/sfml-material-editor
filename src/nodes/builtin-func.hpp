@@ -76,12 +76,12 @@ struct BuiltinFuncNode : ExpressionNode
 			"lerp",
 			"Lerp",
 			{
-				{ "X", makeValueType<ScalarType>()},
-				{ "Y", makeValueType<ScalarType>()},
-				{ "A", makeValueType<ScalarType>()},
+				{ "X", Types::scalar},
+				{ "Y", Types::scalar},
+				{ "A", Types::scalar},
 			},
 			{
-				{ "", makeValueType<ScalarType>()},
+				{ "", Types::scalar},
 			}
 		}, "mix");
 
@@ -90,11 +90,11 @@ struct BuiltinFuncNode : ExpressionNode
 			"mod",
 			"Modulo",
 			{
-				{ "X", makeValueType<ScalarType>()},
-				{ "Y", makeValueType<ScalarType>()},
+				{ "X", Types::scalar},
+				{ "Y", Types::scalar},
 			},
 			{
-				{ "", makeValueType<ScalarType>()},
+				{ "", Types::scalar},
 			}
 		}, "mod");
 
@@ -103,10 +103,10 @@ struct BuiltinFuncNode : ExpressionNode
 			"abs",
 			"Absolute",
 			{
-				{ "", makeValueType<ScalarType>()},
+				{ "", Types::scalar},
 			},
 			{
-				{ "", makeValueType<ScalarType>()},
+				{ "", Types::scalar},
 			}
 		}, "abs");
 	}

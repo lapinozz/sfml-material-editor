@@ -42,8 +42,8 @@ struct ConstantNode : ExpressionNode
 			{
 			},
 			{
-				{ "", makeValueType<ScalarType>()}
+				{ "", Types::scalar}
 			}
-		}, makeValueType<ScalarType>());
+		}, Types::scalar);
 	}
 };

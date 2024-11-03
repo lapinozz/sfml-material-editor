@@ -43,7 +43,7 @@ struct BreakVecNode : ExpressionNode
 		{
 			if (value)
 			{
-				setOutput(x, {makeValueType<ScalarType>(), value.code + "." + ("xyza"[x])});
+				setOutput(x, {Types::scalar, value.code + "." + ("xyza"[x])});
 			}
 			else
 			{
@@ -60,7 +60,7 @@ struct BreakVecNode : ExpressionNode
 
 			for (uint8_t x = 0; x < arrity; x++)
 			{
-				outputs.push_back({ std::string(1, "XYZA"[x]), makeValueType<ScalarType>() });
+				outputs.push_back({ std::string(1, "XYZA"[x]), Types::scalar });
 			}
 
 			repo.add<BreakVecNode>({
@@ -68,7 +68,7 @@ struct BreakVecNode : ExpressionNode
 				"break_vec" + std::to_string(arrity),
 				"Break Vec" + std::to_string(arrity),
 				{
-					{ "", makeValueType<VectorType>(arrity)}
+					{ "", Types::makeVec(arrity)}
 				},
 				outputs
 			}, arrity);

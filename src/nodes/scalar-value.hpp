@@ -36,7 +36,7 @@ struct ScalarValueNode : ExpressionNode
 			"Scalar",
 			{},
 			{
-				{ "", makeValueType<ScalarType>()}
+				{ "", Types::scalar}
 			}
 		});
 	}

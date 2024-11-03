@@ -24,15 +24,15 @@ struct OutputNode : ExpressionNode
 
 			if (!color)
 			{
-				color = Value{ makeValueType<ScalarType>(), "0.5" };
+				color = Value{ Types::scalar, "0.5" };
 			}
 
 			if (!alpha)
 			{
-				alpha = Value{ makeValueType<ScalarType>(), "1" };
+				alpha = Value{ Types::scalar, "1" };
 			}
 
-			color = convert(color, makeValueType<VectorType>(static_cast<std::uint8_t>(3)));
+			color = convert(color, Types::makeVec(3));
 
 			generator.shaderInputs.push_back("uniform float time;");
 
@@ -59,7 +59,7 @@ struct OutputNode : ExpressionNode
 			"out_vertex",
 			"Vertex Out",
 			{
-				{ "Color", makeValueType<ScalarType>()},
+				{ "Color", Types::vec4},
 			},
 			{
 			}
@@ -70,7 +70,7 @@ struct OutputNode : ExpressionNode
 			"out_fragment",
 			"Fragment Out",
 			{
-				{"Color", makeValueType<ScalarType>()}
+				{"Color", Types::vec4}
 			},
 			{
 			}

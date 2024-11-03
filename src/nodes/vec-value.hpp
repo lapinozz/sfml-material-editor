@@ -33,7 +33,7 @@ struct VecValueNode : ExpressionNode
 		}
 
 		value.code += ")";
-		value.type = makeValueType<VectorType>(arrity);
+		value.type = Types::makeVec(arrity);
 
 		setOutput(0, value);
 	}
@@ -91,7 +91,7 @@ struct VecValueNode : ExpressionNode
 				"Vec" + std::to_string(arrity),
 				{},
 				{
-					{ "", makeValueType<VectorType>(arrity)}
+					{ "", Types::makeVec(arrity)}
 				}
 			}, arrity);
 		}
