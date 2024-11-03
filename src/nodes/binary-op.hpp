@@ -54,9 +54,7 @@ struct BinaryOpNode : ExpressionNode
 		const auto& a = getInput(0);
 		const auto& b = getInput(1);
 
-		//assert(aVal.type == bVal.type);
-
-		setOutput(0, Value{ a.type, a.code + " " + operatorStrings[std::to_underlying(op)] + " " + b.code });
+		setOutput(0, Value{ outputs.at(0).type, a.code + " " + operatorStrings[std::to_underlying(op)] + " " + b.code});
 	}
 
 	void serialize(Serializer& s) override
@@ -77,7 +75,7 @@ struct BinaryOpNode : ExpressionNode
 					{ "B", makeValueType<NoneType>()}
 				},
 				{
-					{ "", makeValueType<ScalarType>()},
+					{ "", makeValueType<NoneType>()},
 				},
 				overloads
 			}, op);
@@ -86,7 +84,9 @@ struct BinaryOpNode : ExpressionNode
 		std::vector<NodeArchetype::Overload> overloads
 		{
 			{{Types::scalar, Types::scalar}, {Types::scalar}},
-			{{Types::none, Types::none}, {Types::none} },
+			{{Types::vec2, Types::vec2}, {Types::vec2}},
+			{{Types::vec3, Types::vec3}, {Types::vec3}},
+			{{Types::vec4, Types::vec4}, {Types::vec4}},
 		};
 
 		std::vector<NodeArchetype::Overload> overloadsEmpty;

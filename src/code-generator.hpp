@@ -115,7 +115,7 @@ struct CodeGenerator
 			}
 			else
 			{
-				const auto overload = overloads[selectedOverload];
+				const auto& overload = overloads[selectedOverload];
 				for (uint8_t inputIndex = 0; inputIndex < node.inputs.size(); inputIndex++)
 				{
 					auto& nodeInput = node.inputs[inputIndex];
@@ -133,6 +133,15 @@ struct CodeGenerator
 						nodeInput.field.type = nodeInput.type;
 						nodeInput.value = nodeInput.field.toValue();
 					}
+				}
+
+				for (uint8_t outputIndex = 0; outputIndex < node.outputs.size(); outputIndex++)
+				{
+					auto& nodeOutput = node.outputs[outputIndex];
+
+					const auto& overloadOutput = overload.outputs[outputIndex];
+					const auto targetType = overloadOutput ? overloadOutput : genType;
+					nodeOutput.type = targetType;
 				}
 			}
 		}

@@ -87,6 +87,21 @@ struct ValueType : std::variant<NoneType, ScalarType, VectorType, MatrixType, Sa
 
 		assert(false);
 	}
+
+	bool isGenType() const
+	{
+		if (std::holds_alternative<ScalarType>(*this))
+		{
+			return true;
+		}
+		else if (std::holds_alternative<VectorType>(*this))
+
+		{
+			return true;
+		}
+
+		return false;
+	}
 };
 
 template<typename T, typename...Args>
