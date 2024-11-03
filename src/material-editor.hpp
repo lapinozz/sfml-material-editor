@@ -96,6 +96,7 @@ struct MaterialEditor
 		BinaryOpNode::registerArchetypes(archetypes);
 		BuiltinFuncNode::registerArchetypes(archetypes);
 		BridgeNode::registerArchetypes(archetypes);
+		AppendNode::registerArchetypes(archetypes);
 	}
 
 	void processEvents()

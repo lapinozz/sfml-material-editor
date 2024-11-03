@@ -39,6 +39,7 @@
 #include "nodes/output.hpp"
 #include "nodes/constants.hpp"
 #include "nodes/bridge.hpp"
+#include "nodes/append.hpp"
 
 #include "material-editor.hpp"
 
