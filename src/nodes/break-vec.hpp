@@ -16,25 +16,6 @@ struct BreakVecNode : ExpressionNode
 
 	}
 
-	Value getInputAs(CodeGenerator& generator, uint8_t inputIndex, const ValueType& type, const Value& fallbackValue = {})
-	{
-		auto value = generator.evaluate(id.makeInput(inputIndex));
-
-		if (!value)
-		{
-			return fallbackValue;
-		}
-
-		value = convert(value, type);
-
-		if (!value)
-		{
-
-		}
-
-		return value;
-	}
-
 	void evaluate(CodeGenerator& generator) override
 	{
 		auto value = getInput(0);

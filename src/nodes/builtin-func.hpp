@@ -7,21 +7,10 @@ struct BuiltinFuncNode : ExpressionNode
 	using ExpressionNode::ExpressionNode;
 
 	std::string func;
-	std::vector<FloatField> arguments;
 
 	BuiltinFuncNode(NodeArchetype* archetype, std::string func) : ExpressionNode{ archetype }, func{ func }
 	{
 
-	}
-
-	void update(const Graph& graph) override
-	{
-		ExpressionNode::update(graph);
-
-		if (arguments.size() != inputs.size())
-		{
-			arguments.resize(inputs.size());
-		}
 	}
 
 	void evaluate(CodeGenerator& generator) override
@@ -31,13 +20,7 @@ struct BuiltinFuncNode : ExpressionNode
 		const auto inputCount = inputs.size();
 		for (std::size_t x = 0; x < inputCount; x++)
 		{
-			auto value = getInput(x);
-			if (!value)
-			{
-				value = arguments[x].toValue();
-			}
-
-			code += value.code;
+			code += getInput(x).code;
 
 			if (x < inputCount - 1)
 			{
@@ -48,25 +31,6 @@ struct BuiltinFuncNode : ExpressionNode
 		code += ")";
 
 		setOutput(0, Value{ outputs[0].type, code});
-	}
-
-	void drawInputPin(Input& input, PinId id) override
-	{
-		ExpressionNode::drawInputPin(input, id);
-
-		if (!input.link)
-		{
-			ImGui::SameLine();
-
-			arguments[id.index()].update();
-		}
-	};
-
-	void serialize(Serializer& s) override
-	{
-		ExpressionNode::serialize(s);
-
-		s.serialize("arguments", arguments);
 	}
 
 	static void registerArchetypes(ArchetypeRepo& repo)
@@ -95,7 +59,8 @@ struct BuiltinFuncNode : ExpressionNode
 			},
 			{
 				{ "", Types::scalar},
-			}
+			},
+			{{{Types::none, Types::none}, {Types::none}}},
 		}, "mod");
 
 		repo.add<BuiltinFuncNode>({

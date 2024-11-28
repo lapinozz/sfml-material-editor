@@ -61,7 +61,27 @@ struct ExpressionNode : Graph::Node
 
 		using namespace std::placeholders;
 		s.at("pos").serializeValue<ImVec2>(std::bind(ed::GetNodePosition, id), std::bind(ed::SetNodePosition, id, _1));
-		//ed::GetNodePosition()
+
+		std::vector<ValueField> fields;
+
+		if(s.isSaving)
+		{
+			fields.reserve(inputs.size());
+			for (auto& input : inputs)
+			{
+				fields.push_back(input.field);
+			}
+		}
+
+		s.serialize("fields", fields);
+
+		if (!s.isSaving)
+		{
+			for (size_t x{}; x < inputs.size() && x < fields.size(); x++)
+			{
+				inputs[x].field = fields[x];
+			}
+		}
 	}
 
 	virtual void update(const Graph& graph)

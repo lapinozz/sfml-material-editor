@@ -82,11 +82,13 @@ struct BinaryOpNode : ExpressionNode
 		};
 
 		std::vector<NodeArchetype::Overload> overloads
-		{
+		{/*
 			{{Types::scalar, Types::scalar}, {Types::scalar}},
 			{{Types::vec2, Types::vec2}, {Types::vec2}},
 			{{Types::vec3, Types::vec3}, {Types::vec3}},
 			{{Types::vec4, Types::vec4}, {Types::vec4}},
+			*/
+			{{Types::none, Types::none}, {Types::none}},
 		};
 
 		std::vector<NodeArchetype::Overload> overloadsEmpty;
