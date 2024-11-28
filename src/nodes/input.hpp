@@ -41,6 +41,6 @@ struct InputNode : ExpressionNode
 			{
 				{ "", Types::scalar}
 			}
-		}, Types::makeVec(uint8_t{2}), "gl_TexCoord[0].xy");
+		}, Types::vec2, "gl_TexCoord[0].xy");
 	}
 };

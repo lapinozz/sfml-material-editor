@@ -147,6 +147,29 @@ void serialize(Serializer& s, FloatField& f)
 	s.serialize(f.value);
 }
 
+void serialize(Serializer& s, ValueField& f)
+{
+	auto* type = std::get_if<GenType>(&f.type);
+
+	uint8_t arrity{};
+	if (s.isSaving && type)
+	{
+		arrity = type->arrity;
+	}
+
+	s.serialize("arrity", arrity);
+
+	if (arrity > 0)
+	{
+		if (!s.isSaving)
+		{
+			f.type = Types::makeVec(arrity);
+		}
+
+		s.serialize("values", f.fields);
+	}
+}
+
 void serialize(Serializer& s, ImVec2& v)
 {
 	s.serialize("x", v.x);

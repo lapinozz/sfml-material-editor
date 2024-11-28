@@ -46,7 +46,11 @@ struct BuiltinFuncNode : ExpressionNode
 			},
 			{
 				{ "", Types::scalar},
-			}
+			},
+			{
+				{ {Types::none, Types::none, Types::scalar}, {Types::none} },
+				{ {Types::none, Types::none, Types::none}, {Types::none} }
+			},
 		}, "mix");
 
 		repo.add<BuiltinFuncNode>({
@@ -60,7 +64,10 @@ struct BuiltinFuncNode : ExpressionNode
 			{
 				{ "", Types::scalar},
 			},
-			{{{Types::none, Types::none}, {Types::none}}},
+			{
+				{ {Types::none, Types::scalar}, {Types::none} },
+				{ {Types::none, Types::none}, {Types::none} }
+			},
 		}, "mod");
 
 		repo.add<BuiltinFuncNode>({
@@ -72,6 +79,9 @@ struct BuiltinFuncNode : ExpressionNode
 			},
 			{
 				{ "", Types::scalar},
+			},
+			{
+				{ {Types::none}, {Types::none} }
 			}
 		}, "abs");
 	}

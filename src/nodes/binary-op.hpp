@@ -64,7 +64,7 @@ struct BinaryOpNode : ExpressionNode
 
 	static void registerArchetypes(ArchetypeRepo& repo)
 	{
-		const auto addNode = [&](const auto& cat, const auto& id, const auto& name, const auto overloads, const auto& op)
+		const auto addNode = [&](const auto& cat, const auto& id, const auto& name, const auto& overloads, const auto& op)
 		{
 			repo.add<BinaryOpNode>({
 				cat,
@@ -82,29 +82,31 @@ struct BinaryOpNode : ExpressionNode
 		};
 
 		std::vector<NodeArchetype::Overload> overloads
-		{/*
-			{{Types::scalar, Types::scalar}, {Types::scalar}},
-			{{Types::vec2, Types::vec2}, {Types::vec2}},
-			{{Types::vec3, Types::vec3}, {Types::vec3}},
-			{{Types::vec4, Types::vec4}, {Types::vec4}},
-			*/
+		{
+			{{Types::none, Types::scalar}, {Types::none}},
 			{{Types::none, Types::none}, {Types::none}},
 		};
 
 		std::vector<NodeArchetype::Overload> overloadsEmpty;
 
 		addNode("Maths", "add", "Add", overloads, Op::Add);
-		addNode("Maths", "sub", "Subtract", overloadsEmpty, Op::Sub);
-		addNode("Maths", "mul", "Multiply", overloadsEmpty, Op::Mul);
-		addNode("Maths", "div", "Divide", overloadsEmpty, Op::Div);
+		addNode("Maths", "sub", "Subtract", overloads, Op::Sub);
+		addNode("Maths", "mul", "Multiply", overloads, Op::Mul);
+		addNode("Maths", "div", "Divide", overloads, Op::Div);
 
-		addNode("Comparison", "less", "<", overloadsEmpty, Op::Less);
-		addNode("Comparison", "lessEqual", "<=", overloadsEmpty, Op::LessEqual);
-		addNode("Comparison", "greater", ">", overloadsEmpty, Op::Greater);
-		addNode("Comparison", "greaterEqual", ">=", overloadsEmpty, Op::GreaterEqual);
-		addNode("Comparison", "equal", "==", overloadsEmpty, Op::Equal);
-		addNode("Comparison", "logicAnd", "&&", overloadsEmpty, Op::LogicAnd);
-		addNode("Comparison", "logicOr", "||", overloadsEmpty, Op::LogicOr);
-		addNode("Comparison", "logicExclusiveOr", "^^", overloadsEmpty, Op::LogicExclusiveOr);
+		std::vector<NodeArchetype::Overload> overloadsComp
+		{
+			{{Types::scalar, Types::scalar}, {Types::scalar}},
+		};
+
+		addNode("Comparison", "less", "<", overloadsComp, Op::Less);
+		addNode("Comparison", "lessEqual", "<=", overloadsComp, Op::LessEqual);
+		addNode("Comparison", "greater", ">", overloadsComp, Op::Greater);
+		addNode("Comparison", "greaterEqual", ">=", overloadsComp, Op::GreaterEqual);
+
+		addNode("Comparison", "equal", "==", overloadsComp, Op::Equal);
+		addNode("Comparison", "logicAnd", "&&", overloadsComp, Op::LogicAnd);
+		addNode("Comparison", "logicOr", "||", overloadsComp, Op::LogicOr);
+		addNode("Comparison", "logicExclusiveOr", "^^", overloadsComp, Op::LogicExclusiveOr);
 	}
 };
