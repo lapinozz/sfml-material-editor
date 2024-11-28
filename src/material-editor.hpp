@@ -537,13 +537,17 @@ struct MaterialEditor
 				ed::SetNodePosition(newNode, newNodePostion);
 				if (newNodeTargetPin)
 				{
-					graph.addLink(newNode.makeInput(0) ,newNodeTargetPin);
+					graph.addLink(newNode.makeInput(0), newNodeTargetPin);
 				}
 
 				newNodeTargetPin = {0};
 			}
 
 			ImGui::EndPopup();
+		}
+		else
+		{
+			newNodeTargetPin = { 0 };
 		}
 		ed::Resume();
 
