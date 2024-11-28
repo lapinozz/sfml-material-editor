@@ -191,7 +191,7 @@ struct ExpressionNode : Graph::Node
 
 		const auto hasError = input.error.size() > 0;
 
-		if (input.link)
+		if (input.link || hasError)
 		{
 			draw_list->AddCircleFilled(ImVec2(p.x + size, p.y + textSize.y / 2), size, hasError ? LinkColorError : LinkColor);
 		}

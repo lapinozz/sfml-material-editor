@@ -16,6 +16,8 @@ struct NodeArchetype
 	{
 		std::string name;
 		ValueType type;
+
+		bool requireLink = false;
 	};
 
 	struct Output

@@ -14,6 +14,11 @@ struct AppendNode : ExpressionNode
 		const auto& a = getInput(0);
 		const auto& b = getInput(1);
 
+		if (!a || !b)
+		{
+			return;
+		}
+
 		int arrityA{};
 		int arrityB{};
 
@@ -58,8 +63,8 @@ struct AppendNode : ExpressionNode
 			"append",
 			"Append",
 			{
-				{ "A", makeValueType<NoneType>()},
-				{ "B", makeValueType<NoneType>()}
+				{ .name = "A", .type = makeValueType<NoneType>(), .requireLink = true},
+				{ .name = "B", .type = makeValueType<NoneType>(), .requireLink = true}
 			},
 			{
 				{ "", makeValueType<NoneType>()},

@@ -32,11 +32,10 @@ struct OutputNode : ExpressionNode
 				alpha = Value{ Types::scalar, "1" };
 			}
 
-			color = convert(color, Types::makeVec(3));
 
 			generator.shaderInputs.push_back("uniform float time;");
 
-			generator.body.push_back("gl_FrontColor = vec4(" + color.code + ", " + alpha.code + ");");
+			generator.body.push_back("gl_FrontColor = vec4(" + color.code + ");");
 			generator.body.push_back("gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;");
 			generator.body.push_back("gl_TexCoord[0] = gl_TextureMatrix[0] * gl_MultiTexCoord0;");
 		}
@@ -48,7 +47,7 @@ struct OutputNode : ExpressionNode
 
 			generator.body.push_back("vec4 pixel = texture2D(texture, gl_TexCoord[0].xy);");
 			generator.body.push_back("gl_FragColor = gl_Color * pixel;");
-			//generator.body.push_back("gl_FragColor = gl_Color;");
+			generator.body.push_back("gl_FragColor = gl_Color;");
 		}
 	}
 

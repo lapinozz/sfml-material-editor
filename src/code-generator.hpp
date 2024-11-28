@@ -146,6 +146,14 @@ struct CodeGenerator
 			}
 		}
 
+		for (auto& input : node.inputs)
+		{
+			if (input.requireLink && !input.link)
+			{
+				input.error = "Pin requires a link";
+			}
+		}
+
 		node.evaluate(*this);
 
 		constexpr size_t ExpressionVariableLengthCutoff = 15;
@@ -159,13 +167,16 @@ struct CodeGenerator
 				continue;
 			}
 
-			if (output.linkCount > 1 || output.value.code.size() >= ExpressionVariableLengthCutoff)
+			if (output.value)
 			{
-				setAsVar(node.id.makeOutput(outputIndex), output.value);
-			}
-			else
-			{
-				cachedValues[node.id.makeOutput(outputIndex)] = output.value;
+				if (output.linkCount > 1 || output.value.code.size() >= ExpressionVariableLengthCutoff)
+				{
+					setAsVar(node.id.makeOutput(outputIndex), output.value);
+				}
+				else
+				{
+					cachedValues[node.id.makeOutput(outputIndex)] = output.value;
+				}
 			}
 		}
 	}
