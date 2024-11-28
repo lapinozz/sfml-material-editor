@@ -18,6 +18,7 @@ struct NodeArchetype
 		ValueType type;
 
 		bool requireLink = false;
+		bool showField = true;
 	};
 
 	struct Output

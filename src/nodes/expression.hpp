@@ -208,7 +208,10 @@ struct ExpressionNode : Graph::Node
 		{
 			ImGui::SameLine();
 
-			input.field.update(input.type);
+			if (input.showField)
+			{
+				input.field.update(input.type);
+			}
 		}
 	};
 

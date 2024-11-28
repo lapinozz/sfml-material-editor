@@ -68,7 +68,7 @@ struct BreakVecNode : ExpressionNode
 				"break_vec" + std::to_string(arrity),
 				"Break Vec" + std::to_string(arrity),
 				{
-					{ "", Types::makeVec(arrity)}
+					{ .name="", .type=Types::makeVec(arrity), .showField=false}
 				},
 				outputs
 			}, arrity);
