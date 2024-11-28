@@ -174,7 +174,7 @@ struct Preview
 				states.shader = &shader;
 			}
 
-			previewTexture.draw(*shape);
+			previewTexture.draw(*shape, states);
 
 			previewTexture.display();
 
