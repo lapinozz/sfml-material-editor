@@ -55,11 +55,9 @@ struct FloatField
 		ImGuiInputTextState* state = ImGui::GetInputTextState(imId);
 		if (state && ImGui::GetActiveID() == imId)
 		{
-			state->ScrollX = 0;
+			state->Scroll.x = 0;
 
-			std::array<char, 64> buf{};
-			ImTextStrToUtf8(buf.data(), buf.size(), &state->TextW.front(), nullptr);
-			fieldWidth = ImGui::CalcTextSize(buf.data()).x + 10;
+			fieldWidth = ImGui::CalcTextSize(state->TextA.Data, state->TextA.Data + state->TextLen).x + 10;
 
 			widthDirty = true;
 		}

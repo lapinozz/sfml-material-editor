@@ -32,6 +32,15 @@
 
 namespace crude_json {
 
+template<std::size_t Len, std::size_t Align>
+struct aligned_storage
+{
+	struct type
+	{
+		alignas(Align) std::byte data[Len];
+	};
+};
+
 struct value;
 
 using string  = std::string;
@@ -147,7 +156,7 @@ private:
 # undef CRUDE_MAX4
 # undef CRUDE_MAX3
 # undef CRUDE_MAX2
-    using storage_t = std::aligned_storage<max_size, max_align>::type;
+    using storage_t = aligned_storage<max_size, max_align>::type;
 
     static       object*   object_ptr(      storage_t& storage) { return reinterpret_cast<       object*>(&storage); }
     static const object*   object_ptr(const storage_t& storage) { return reinterpret_cast<const  object*>(&storage); }

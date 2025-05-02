@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.6)
 project(CMakeSFMLProject LANGUAGES CXX)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -11,15 +11,21 @@ include(FetchContent)
 
 FetchContent_Declare(SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
-    GIT_TAG master)
+    GIT_TAG 016bea9491ccafc3529019fe1d403885a8b3a6ae)
 FetchContent_MakeAvailable(SFML)
 
-set(IMGUI_DIR "${PROJECT_SOURCE_DIR}/deps/imgui")
+FetchContent_Declare(IMGUI
+    GIT_REPOSITORY https://github.com/lapinozz/imgui.git
+    GIT_TAG origin/MyLittleShader)
+FetchContent_MakeAvailable(IMGUI)
+
+set(IMGUI_DIR "${imgui_SOURCE_DIR}")
 
 set(IMGUI_SFML_FIND_SFML OFF)
+set(IMGUI_SFML_FIND_IMGUI OFF)
 FetchContent_Declare(ImGui-SFML
     GIT_REPOSITORY https://github.com/SFML/imgui-sfml
-    GIT_TAG master)
+    GIT_TAG 5e8f8fb857c8f3cff1096bf3e4402c64e3bcf6af)
 FetchContent_MakeAvailable(ImGui-SFML)
 
 set(IMNOED_DIR "${PROJECT_SOURCE_DIR}/deps/imgui-node-editor")
