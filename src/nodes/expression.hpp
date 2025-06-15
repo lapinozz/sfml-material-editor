@@ -73,7 +73,7 @@ struct ExpressionNode : Graph::Node
 			}
 		}
 
-		s.serialize("fields", fields);
+		s.serialize("input_fields", fields);
 
 		if (!s.isSaving)
 		{
