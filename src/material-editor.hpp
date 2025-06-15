@@ -17,7 +17,7 @@ struct MaterialEditor
 
 	TextEditor vertexEditor;
 	TextEditor fragmentEditor;
-	
+
 	ed::EditorContext* edContext{};
 	sf::Shader shader;
 
@@ -29,7 +29,7 @@ struct MaterialEditor
 	std::string vertexCode;
 	std::string fragmentCode;
 
-	PinId newNodeTargetPin{0};
+	PinId newNodeTargetPin{ 0 };
 
 	MaterialEditor() :
 		window{ sf::VideoMode{ { 1800u, 900u } }, "CMake SFML Project", sf::Style::Default, sf::State::Windowed }
@@ -59,7 +59,7 @@ struct MaterialEditor
 		io.Fonts->AddFontFromFileTTF("./Cousine-Regular.ttf", baseFontSize);
 
 		ImFontConfig font_cfg;
-		font_cfg.FontDataOwnedByAtlas = false; 
+		font_cfg.FontDataOwnedByAtlas = false;
 		static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
 		ImFontConfig icons_config;
 		font_cfg.MergeMode = true;
@@ -256,7 +256,7 @@ struct MaterialEditor
 							inputBridge->connectionMode = BridgeNode::ConnectionMode::Neutral;
 						}
 					}
-					else if(inputBridge && outputBridge)
+					else if (inputBridge && outputBridge)
 					{
 						inputBridge->connectionMode = BridgeNode::ConnectionMode::Output;
 						outputBridge->connectionMode = BridgeNode::ConnectionMode::Input;
@@ -283,31 +283,31 @@ struct MaterialEditor
 					{
 						inputPinId = inputBridge->connectionMode == BridgeNode::ConnectionMode::Output ? inputPinId.nodeId().makeOutput(0) : inputPinId.nodeId().makeInput(0);
 					}
-					
+
 					const auto canAddLink = [&](PinId in, PinId out)
-					{
-						if (in == out)
 						{
-							return false;
-						}
+							if (in == out)
+							{
+								return false;
+							}
 
-						if (in.direction() == out.direction())
-						{
-							return false;
-						}
+							if (in.direction() == out.direction())
+							{
+								return false;
+							}
 
-						if (in.nodeId() == out.nodeId())
-						{
-							return false;
-						}
+							if (in.nodeId() == out.nodeId())
+							{
+								return false;
+							}
 
-						if (graph.hasLink({in, out}))
-						{
-							return false;
-						}
+							if (graph.hasLink({ in, out }))
+							{
+								return false;
+							}
 
-						return true;
-					};
+							return true;
+						};
 
 					const auto valid = canAddLink(inputPinId, outputPinId);
 					if (ed::AcceptNewItem(valid ? ImVec4(255, 255, 255, 255) : ImVec4(255, 0, 0, 255)))
@@ -399,7 +399,7 @@ struct MaterialEditor
 		}
 
 		std::string error{};
-		if(const LinkId link = ed::GetHoveredLink())
+		if (const LinkId link = ed::GetHoveredLink())
 		{
 			const auto to = link.to();
 			const auto& node = graph.getNode<ExpressionNode>(to.nodeId());
@@ -440,8 +440,8 @@ struct MaterialEditor
 		}
 		ed::Resume();
 
-		ed::Suspend(); 
-		ImGui::SetNextWindowSize({300.f, 400.f});
+		ed::Suspend();
+		ImGui::SetNextWindowSize({ 300.f, 400.f });
 		if (ImGui::BeginPopup("Create New Node"))
 		{
 			ImGui::Dummy({ 200.f, 0.f });
@@ -453,20 +453,44 @@ struct MaterialEditor
 			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 3));
 
 			static std::string filterStr;
+			static int selectionIndex = -1;
 
 			if (ImGui::IsWindowAppearing())
 			{
 				filterStr.clear();
 				ImGui::SetKeyboardFocusHere(0);
+				ImGui::SetScrollY(0);
 			}
 
 			bool openAll = ImGui::InputTextWithHint("##filter", ICON_FA_MAGNIFYING_GLASS " Search", &filterStr);
+
+			if (openAll || ImGui::IsWindowAppearing())
+			{
+				selectionIndex = -1;
+			}
+
+			bool selectionChanged = false;
+
+			if (ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_DownArrow))
+			{
+				openAll = true;
+				selectionIndex++;
+				selectionChanged = true;
+			}
+			else if (ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_UpArrow))
+			{
+				openAll = true;
+				selectionIndex--;
+				selectionChanged = true;
+			}
+
+			const bool createAtIndex = ImGui::IsKeyPressed(ImGuiKey_Enter);
 
 			std::unordered_map<std::string, std::vector<std::string>> categories;
 
 			const auto isFilteredOut = [&](const auto& arch)
 			{
-				if(filterStr.empty())
+				if (filterStr.empty())
 				{
 					return false;
 				}
@@ -497,6 +521,8 @@ struct MaterialEditor
 				}
 			}
 
+			int currentIndex = 0;
+
 			for (auto& [category, archetypeIds] : categories)
 			{
 				if (category.empty())
@@ -517,10 +543,29 @@ struct MaterialEditor
 					for (const auto& archetypeId : archetypeIds)
 					{
 						const auto& archetype = archetypes.archetypes[archetypeId];
-						if (ImGui::MenuItem(archetype.title.c_str()))
+						const auto isSelected = selectionIndex == currentIndex;
+
+						if (isSelected)
+						{
+							ImGui::PushStyleColor(ImGuiCol_MenuBarBg, ImVec4(0.26f, 0.59f, 0.98f, 0.80f));
+						}
+
+						if (ImGui::Selectable(archetype.title.c_str(), isSelected) || (createAtIndex && isSelected))
 						{
 							newNode = graph.AddNode(archetype.createNode()).id;
 						}
+
+						if (isSelected && selectionChanged)
+						{
+							ImGui::ScrollToRect(ImGui::GetCurrentWindow(), {ImGui::GetItemRectMin(), ImGui::GetItemRectMax() });
+						}
+
+						if (isSelected)
+						{
+							ImGui::PopStyleColor(1);
+						}
+
+						currentIndex++;
 					}
 
 					ImGui::TreePop();
@@ -530,6 +575,11 @@ struct MaterialEditor
 
 			ImGui::PopStyleVar();
 
+			if (currentIndex > 0)
+			{
+				selectionIndex = std::clamp(selectionIndex, 0, currentIndex - 1);
+			}
+
 			if (newNode)
 			{
 				ImGui::CloseCurrentPopup();
@@ -537,10 +587,17 @@ struct MaterialEditor
 				ed::SetNodePosition(newNode, newNodePostion);
 				if (newNodeTargetPin)
 				{
-					graph.addLink(newNode.makeInput(0), newNodeTargetPin);
+					if (newNodeTargetPin.direction() == PinDirection::In)
+					{
+						graph.addLink(newNodeTargetPin, newNode.makeOutput(0));
+					}
+					else
+					{
+						graph.addLink(newNode.makeInput(0), newNodeTargetPin);
+					}
 				}
 
-				newNodeTargetPin = {0};
+				newNodeTargetPin = { 0 };
 			}
 
 			ImGui::EndPopup();
@@ -626,7 +683,7 @@ struct MaterialEditor
 		ImGui::End();
 		ImGui::PopStyleVar(1);
 	}
-	
+
 	void update()
 	{
 		while (window.isOpen())
@@ -674,8 +731,8 @@ struct MaterialEditor
 
 			drawMainWindow();
 
- 			//ImGui::Begin("Dear ImGui Style Editor", nullptr);
- 			//ImGui::ShowStyleEditor();
+			//ImGui::Begin("Dear ImGui Style Editor", nullptr);
+			//ImGui::ShowStyleEditor();
 			//ImGui::End();
 
 			window.clear();
