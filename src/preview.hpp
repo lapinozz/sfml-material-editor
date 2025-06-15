@@ -40,6 +40,8 @@ struct Preview
 		auto rect = std::make_unique<sf::RectangleShape>(sf::Vector2f{ shapeSettings.size, shapeSettings.size });
 		rect->setFillColor(shapeSettings.color);
 		rect->setOrigin({ shapeSettings.size / 2.f, shapeSettings.size / 2.f });
+		rect->setTextureRect({ {}, {1, 1} });
+
 		return rect;
 	}
 
@@ -48,6 +50,7 @@ struct Preview
 		auto circle = std::make_unique<sf::CircleShape>(shapeSettings.size / 2.f);
 		circle->setFillColor(shapeSettings.color);
 		circle->setOrigin({ shapeSettings.size / 2.f, shapeSettings.size / 2.f });
+		circle->setTextureRect({ {}, {1, 1} });
 		return circle;
 	}
 
@@ -56,6 +59,7 @@ struct Preview
 		std::unique_ptr<sf::ConvexShape> ptr = std::make_unique<sf::ConvexShape>(3);
 		ptr->setFillColor(shapeSettings.color);
 		ptr->setOrigin({ shapeSettings.size / 2.f, shapeSettings.size / 2.f });
+		ptr->setTextureRect({ {}, {1, 1} });
 		
 		ptr->setPoint(0, { shapeSettings.size / 2.f, 0.f });
 		ptr->setPoint(1, { shapeSettings.size, shapeSettings.size });
@@ -70,6 +74,7 @@ struct Preview
 		hex->setFillColor(shapeSettings.color);
 		hex->setOrigin({ shapeSettings.size / 2.f, shapeSettings.size / 2.f });
 		hex->rotate(sf::degrees(360.f / 6.f / 2.f));
+		hex->setTextureRect({ {}, {1, 1} });
 		return hex;
 	}
 
@@ -77,6 +82,7 @@ struct Preview
 	{
 		std::unique_ptr<sf::ConvexShape> ptr = std::make_unique<sf::ConvexShape>(10);
 		ptr->setFillColor(shapeSettings.color);
+		ptr->setTextureRect({ {}, {1, 1} });
 
 		for (int x = 0; x < 10; x++)
 		{
