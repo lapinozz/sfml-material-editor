@@ -84,5 +84,20 @@ struct BuiltinFuncNode : ExpressionNode
 				{ {Types::none}, {Types::none} }
 			}
 		}, "abs");
+
+		repo.add<BuiltinFuncNode>({
+			"Maths",
+			"length",
+			"Length",
+			{
+				{ "", Types::scalar},
+			},
+			{
+				{ "", Types::scalar},
+			},
+			{
+				{ {Types::none}, {Types::scalar} }
+			}
+			}, "length");
 	}
 };
