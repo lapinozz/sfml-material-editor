@@ -163,79 +163,8 @@ struct MaterialEditor
 		}
 	}
 
-	void drawNodeEditor()
+	void updateCreate()
 	{
-		const auto mousePos = ImGui::GetMousePos();
-
-		ImGui::BeginChild("wow", {}, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
-		ImGui::Separator();
-		ed::Begin("My Editor", ImVec2(0.0, 0.0f));
-		auto cursorTopLeft = ImGui::GetCursorScreenPos();
-
-		CodeGenerator vertexGen(graph, CodeGenerator::Type::Vertex);
-		CodeGenerator fragmentGen(graph, CodeGenerator::Type::Fragment);
-
-		for (auto& node : graph.nodes)
-		{
-			if (!node)
-			{
-				continue;
-			}
-
-			static_cast<ExpressionNode&>(*node).update(graph);
-		}
-
-		for (auto& link : graph.links)
-		{
-			graph.getNode<ExpressionNode>(link.to().nodeId()).inputs[link.to().index()].link = link;
-			graph.getNode< ExpressionNode>(link.from().nodeId()).outputs[link.from().index()].linkCount++;
-		}
-
-		for (auto& node : graph.nodes)
-		{
-			if (!node)
-			{
-				continue;
-			}
-
-			if (auto* n = dynamic_cast<OutputNode*>(node.get()))
-			{
-				if (n->type == CodeGenerator::Type::Vertex)
-				{
-					vertexGen.evaluate(*n);
-				}
-				else if (n->type == CodeGenerator::Type::Fragment)
-				{
-					fragmentGen.evaluate(*n);
-				}
-			}
-		}
-
-		for (auto& node : graph.nodes)
-		{
-			if (!node)
-			{
-				continue;
-			}
-
-			static_cast<ExpressionNode&>(*node).draw();
-		}
-
-		auto newVertexCode = vertexGen.finalize();
-		auto newFragmentCode = fragmentGen.finalize();
-		if (vertexCode != newVertexCode || fragmentCode != newFragmentCode)
-		{
-			vertexCode = std::move(newVertexCode);
-			fragmentCode = std::move(newFragmentCode);
-
-			vertexEditor.SetText(vertexCode);
-			fragmentEditor.SetText(fragmentCode);
-
-			(void)shader.loadFromMemory(vertexCode, fragmentCode);
-		}
-
-		shader.setUniform("time", runningTime);
-
 		if (ed::BeginCreate())
 		{
 			ed::PinId edInputPinId, edOutputPinId;
@@ -347,9 +276,11 @@ struct MaterialEditor
 				}
 			}
 		}
-		ed::EndCreate(); // Wraps up object creation action handling.        
+		ed::EndCreate();
+	}
 
-		// Handle deletion action
+	void updateDelete()
+	{
 		if (ed::BeginDelete())
 		{
 			// There may be many links marked for deletion, let's loop over them.
@@ -373,73 +304,10 @@ struct MaterialEditor
 			}
 		}
 		ed::EndDelete(); // Wrap up deletion action
+	}
 
-		if (const LinkId link = ed::GetDoubleClickedLink())
-		{
-			auto& node = static_cast<ExpressionNode&>(graph.AddNode(archetypes.archetypes["bridge"].createNode()));
-			ed::SetNodePosition(node.id, ed::ScreenToCanvas(mousePos));
-
-			graph.addLink(link.from(), node.id.makeInput(0));
-			graph.addLink(node.id.makeOutput(0), link.to());
-
-			graph.removeLink(link);
-		}
-
-		//ed::PushStyleVar(ax::NodeEditor::StyleVar_LinkStrength, 10.f);
-
-		for (auto& link : graph.links)
-		{
-			const auto from = link.from();
-			const auto to = link.to();
-			const auto& node = graph.getNode<ExpressionNode>(to.nodeId());
-			const auto& input = node.inputs[to.index()];
-			const auto color = input.hasError() ? LinkColorError : LinkColor;
-
-			ed::Link(link, from, to, color, 2.f);
-		}
-
-		std::string error{};
-		if (const LinkId link = ed::GetHoveredLink())
-		{
-			const auto to = link.to();
-			const auto& node = graph.getNode<ExpressionNode>(to.nodeId());
-			const auto& input = node.inputs[to.index()];
-			if (input.hasError())
-			{
-				error = input.error;
-			}
-		}
-		else if (const PinId pin = ed::GetHoveredPin(); pin && pin.direction() == PinDirection::In)
-		{
-			const auto& node = graph.getNode<ExpressionNode>(pin.nodeId());
-			const auto& input = node.inputs[pin.index()];
-			if (input.hasError())
-			{
-				error = input.error;
-			}
-		}
-
-		if (!error.empty())
-		{
-			ed::Suspend();
-			if (ImGui::BeginTooltip())
-			{
-				ImGui::Text(error.c_str());
-				ImGui::EndTooltip();
-			}
-			ed::Resume();
-		}
-
-		ImGui::SetCursorScreenPos(cursorTopLeft);
-
-		auto openPopupPosition = ImGui::GetMousePos();
-		ed::Suspend();
-		if (ed::ShowBackgroundContextMenu())
-		{
-			ImGui::OpenPopup("Create New Node");
-		}
-		ed::Resume();
-
+	void createNewNodePopup()
+	{
 		ed::Suspend();
 		ImGui::SetNextWindowSize({ 300.f, 400.f });
 		if (ImGui::BeginPopup("Create New Node"))
@@ -447,7 +315,6 @@ struct MaterialEditor
 			ImGui::Dummy({ 200.f, 0.f });
 
 			auto newNodePostion = ed::ScreenToCanvas(ImGui::GetMousePosOnOpeningCurrentPopup());
-			//ImGui::SetCursorScreenPos(ImGui::GetMousePosOnOpeningCurrentPopup());
 			NodeId newNode{ 0 };
 
 			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 3));
@@ -471,13 +338,13 @@ struct MaterialEditor
 
 			bool selectionChanged = false;
 
-			if (ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_DownArrow))
+			if (ImGui::IsKeyPressed(ImGuiKey_DownArrow))
 			{
 				openAll = true;
 				selectionIndex++;
 				selectionChanged = true;
 			}
-			else if (ImGui::IsItemActive() && ImGui::IsKeyPressed(ImGuiKey_UpArrow))
+			else if (ImGui::IsKeyPressed(ImGuiKey_UpArrow))
 			{
 				openAll = true;
 				selectionIndex--;
@@ -489,29 +356,29 @@ struct MaterialEditor
 			std::unordered_map<std::string, std::vector<std::string>> categories;
 
 			const auto isFilteredOut = [&](const auto& arch)
-			{
-				if (filterStr.empty())
 				{
-					return false;
-				}
+					if (filterStr.empty())
+					{
+						return false;
+					}
 
-				if (arch.category.contains(filterStr))
-				{
-					return false;
-				}
+					if (arch.category.contains(filterStr))
+					{
+						return false;
+					}
 
-				if (arch.id.contains(filterStr))
-				{
-					return false;
-				}
+					if (arch.id.contains(filterStr))
+					{
+						return false;
+					}
 
-				if (arch.title.contains(filterStr))
-				{
-					return false;
-				}
+					if (arch.title.contains(filterStr))
+					{
+						return false;
+					}
 
-				return true;
-			};
+					return true;
+				};
 
 			for (const auto& [id, archetype] : archetypes.archetypes)
 			{
@@ -557,7 +424,7 @@ struct MaterialEditor
 
 						if (isSelected && selectionChanged)
 						{
-							ImGui::ScrollToRect(ImGui::GetCurrentWindow(), {ImGui::GetItemRectMin(), ImGui::GetItemRectMax() });
+							ImGui::ScrollToRect(ImGui::GetCurrentWindow(), { ImGui::GetItemRectMin(), ImGui::GetItemRectMax() });
 						}
 
 						if (isSelected)
@@ -607,6 +474,145 @@ struct MaterialEditor
 			newNodeTargetPin = { 0 };
 		}
 		ed::Resume();
+	}
+
+	void drawNodeEditor()
+	{
+		const auto mousePos = ImGui::GetMousePos();
+
+		ImGui::BeginChild("wow", {}, false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
+		ImGui::Separator();
+		ed::Begin("My Editor", ImVec2(0.0, 0.0f));
+
+		CodeGenerator vertexGen(graph, CodeGenerator::Type::Vertex);
+		CodeGenerator fragmentGen(graph, CodeGenerator::Type::Fragment);
+
+		for (auto& node : graph.nodes)
+		{
+			if (!node)
+			{
+				continue;
+			}
+
+			static_cast<ExpressionNode&>(*node).update(graph);
+		}
+
+		for (auto& link : graph.links)
+		{
+			graph.getNode<ExpressionNode>(link.to().nodeId()).inputs[link.to().index()].link = link;
+			graph.getNode<ExpressionNode>(link.from().nodeId()).outputs[link.from().index()].linkCount++;
+		}
+
+		for (auto& node : graph.nodes)
+		{
+			if (!node)
+			{
+				continue;
+			}
+
+			if (auto* n = dynamic_cast<OutputNode*>(node.get()))
+			{
+				if (n->type == CodeGenerator::Type::Vertex)
+				{
+					vertexGen.evaluate(*n);
+				}
+				else if (n->type == CodeGenerator::Type::Fragment)
+				{
+					fragmentGen.evaluate(*n);
+				}
+			}
+		}
+
+		for (auto& node : graph.nodes)
+		{
+			if (!node)
+			{
+				continue;
+			}
+
+			static_cast<ExpressionNode&>(*node).draw();
+		}
+
+		auto newVertexCode = vertexGen.finalize();
+		auto newFragmentCode = fragmentGen.finalize();
+		if (vertexCode != newVertexCode || fragmentCode != newFragmentCode)
+		{
+			vertexCode = std::move(newVertexCode);
+			fragmentCode = std::move(newFragmentCode);
+
+			vertexEditor.SetText(vertexCode);
+			fragmentEditor.SetText(fragmentCode);
+
+			(void)shader.loadFromMemory(vertexCode, fragmentCode);
+		}
+
+		shader.setUniform("time", runningTime);
+
+		updateCreate();
+		updateDelete();
+
+		if (const LinkId link = ed::GetDoubleClickedLink())
+		{
+			auto& node = static_cast<ExpressionNode&>(graph.AddNode(archetypes.archetypes["bridge"].createNode()));
+			ed::SetNodePosition(node.id, ed::ScreenToCanvas(mousePos));
+
+			graph.addLink(link.from(), node.id.makeInput(0));
+			graph.addLink(node.id.makeOutput(0), link.to());
+
+			graph.removeLink(link);
+		}
+
+		for (auto& link : graph.links)
+		{
+			const auto from = link.from();
+			const auto to = link.to();
+			const auto& node = graph.getNode<ExpressionNode>(to.nodeId());
+			const auto& input = node.inputs[to.index()];
+			const auto color = input.hasError() ? LinkColorError : LinkColor;
+
+			ed::Link(link, from, to, color, 2.f);
+		}
+
+		std::string error{};
+		if (const LinkId link = ed::GetHoveredLink())
+		{
+			const auto to = link.to();
+			const auto& node = graph.getNode<ExpressionNode>(to.nodeId());
+			const auto& input = node.inputs[to.index()];
+			if (input.hasError())
+			{
+				error = input.error;
+			}
+		}
+		else if (const PinId pin = ed::GetHoveredPin(); pin && pin.direction() == PinDirection::In)
+		{
+			const auto& node = graph.getNode<ExpressionNode>(pin.nodeId());
+			const auto& input = node.inputs[pin.index()];
+			if (input.hasError())
+			{
+				error = input.error;
+			}
+		}
+
+		if (!error.empty())
+		{
+			ed::Suspend();
+			if (ImGui::BeginTooltip())
+			{
+				ImGui::Text(error.c_str());
+				ImGui::EndTooltip();
+			}
+			ed::Resume();
+		}
+
+		ed::Suspend();
+		if (ed::ShowBackgroundContextMenu())
+		{
+			ImGui::OpenPopup("Create New Node");
+		}
+		ed::Resume();
+
+		createNewNodePopup();
 
 		if (ed::IsBackgroundDoubleClicked())
 		{
@@ -616,7 +622,6 @@ struct MaterialEditor
 		ed::End();
 
 		ImGui::Separator();
-		ed::SetCurrentEditor(nullptr);
 		ImGui::EndChild();
 	}
 
