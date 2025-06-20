@@ -48,6 +48,7 @@ struct CodeGenerator
 			for (uint8_t inputIndex = 0; inputIndex < node.inputs.size(); inputIndex++)
 			{
 				auto& input = node.inputs.at(inputIndex);
+
 				if (input.value && input.type)
 				{
 					auto value = convert(input.value, input.type);
@@ -57,6 +58,11 @@ struct CodeGenerator
 					}
 
 					input.value = std::move(value);
+				}
+				else if (input.showField && input.type)
+				{
+					input.field.type = input.type;
+					input.value = input.field.toValue();
 				}
 			}
 		}
@@ -192,6 +198,19 @@ struct CodeGenerator
 			}
 			else
 			{
+				/*
+				auto& destNode = graph.getNode<ExpressionNode>(pin.nodeId());
+				if (pin.index() < destNode.inputs.size())
+				{
+					auto& input = destNode.inputs[pin.index()];
+					if (input.showField)
+					{
+						input.field.type = input.type;
+						return input.field.toValue();
+					}
+				}
+				*/
+
 				return Values::null;
 			}
 		}
