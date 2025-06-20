@@ -18,7 +18,7 @@ struct MakeVecNode : ExpressionNode
 
 	void evaluate(CodeGenerator& generator) override
 	{
-		bool firstOnlySet = true;
+		bool firstOnlySet = false;
 		if (!inputs[0].link)
 		{
 			firstOnlySet = false;
@@ -34,7 +34,7 @@ struct MakeVecNode : ExpressionNode
 
 		Value value;
 
-		auto firstValue = getInput(0).value_or(Values::zero);
+		auto firstValue = getInput(0);
 
 		value.code = std::format("vec{}(", arrity);
 		for (uint8_t x = 0; x < arrity; x++)
@@ -44,7 +44,7 @@ struct MakeVecNode : ExpressionNode
 				value.code += ", ";
 			}
 
-			value.code += (x == 0 || firstOnlySet) ? firstValue.code : getInput(x).value_or(Values::zero).code;
+			value.code += (x == 0 || firstOnlySet) ? firstValue.code : getInput(x).code;
 		}
 
 		value.code += ")";
