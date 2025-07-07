@@ -91,7 +91,7 @@ struct Serializer
 	}
 };
 
-void serialize(Serializer& s, float& f)
+inline void serialize(Serializer& s, float& f)
 {
 	if (s.isSaving)
 	{
@@ -117,7 +117,7 @@ void serialize(Serializer& s, T& f)
 	}
 }
 
-void serialize(Serializer& s, std::string& f)
+inline void serialize(Serializer& s, std::string& f)
 {
 	if (s.isSaving)
 	{
