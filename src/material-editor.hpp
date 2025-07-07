@@ -8,6 +8,11 @@
 #include "preview.hpp"
 #include "constants.hpp"
 
+#include "formatting/Private/Formatter.h"
+#include "formatting/Private/UEGraphAdapter.h"
+
+#include "formatting.hpp"
+
 struct MaterialEditor
 {
 	sf::RenderWindow window;
@@ -116,6 +121,11 @@ struct MaterialEditor
 			}
 			else if (auto* e = event->getIf<sf::Event::KeyPressed>())
 			{
+				if (ImGui::GetIO().WantCaptureKeyboard)
+				{
+					continue;
+				}
+
 				if (e->code == sf::Keyboard::Key::L)
 				{
 					graph.nodes.clear();
@@ -158,6 +168,16 @@ struct MaterialEditor
 					std::ofstream of("./test.json");
 					of << j;
 					of.close();
+				}
+				else if (e->code == sf::Keyboard::Key::Y)
+				{
+					UEGraphAdapter::CurrentGraph = &graph;
+
+					//FFormatter formatter;
+					//formatter.Format();
+
+					Formatter formatter{ &graph };
+					formatter.format();
 				}
 			}
 		}
@@ -548,9 +568,6 @@ struct MaterialEditor
 
 		shader.setUniform("time", runningTime);
 
-		updateCreate();
-		updateDelete();
-
 		if (const LinkId link = ed::GetDoubleClickedLink())
 		{
 			auto& node = static_cast<ExpressionNode&>(graph.AddNode(archetypes.archetypes["bridge"].createNode()));
@@ -618,6 +635,9 @@ struct MaterialEditor
 		{
 			ed::NavigateToContent(0.25f);
 		}
+
+		updateCreate();
+		updateDelete();
 
 		ed::End();
 
