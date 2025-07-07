@@ -55,11 +55,29 @@ struct BuiltinFuncNode : ExpressionNode
 
 		repo.add<BuiltinFuncNode>({
 			"Maths",
+			"clamp",
+			"Clamp",
+			{
+				{ "Value", Types::scalar},
+				{ "Min", Types::scalar},
+				{ "Max", Types::scalar},
+			},
+			{
+				{ "", Types::scalar},
+			},
+			{
+				{ {Types::none, Types::none, Types::none}, {Types::none} },
+				{ {Types::none, Types::scalar, Types::scalar}, {Types::none} }
+			},
+		}, "clamp");
+
+		repo.add<BuiltinFuncNode>({
+			"Maths",
 			"mod",
 			"Modulo",
 			{
-				{ "X", Types::scalar},
-				{ "Y", Types::scalar},
+				{ "A", Types::scalar},
+				{ "B", Types::scalar},
 			},
 			{
 				{ "", Types::scalar},
@@ -72,18 +90,71 @@ struct BuiltinFuncNode : ExpressionNode
 
 		repo.add<BuiltinFuncNode>({
 			"Maths",
-			"abs",
-			"Absolute",
+			"min",
+			"Min",
 			{
-				{ "", Types::scalar},
+				{ "A", Types::scalar},
+				{ "B", Types::scalar},
 			},
 			{
 				{ "", Types::scalar},
 			},
 			{
-				{ {Types::none}, {Types::none} }
-			}
-		}, "abs");
+				{ {Types::none, Types::scalar}, {Types::none} },
+				{ {Types::none, Types::none}, {Types::none} }
+			},
+		}, "min");
+
+		repo.add<BuiltinFuncNode>({
+			"Maths",
+			"max",
+			"Max",
+			{
+				{ "A", Types::scalar},
+				{ "B", Types::scalar},
+			},
+			{
+				{ "", Types::scalar},
+			},
+			{
+				{ {Types::none, Types::scalar}, {Types::none} },
+				{ {Types::none, Types::none}, {Types::none} }
+			},
+		}, "max");
+
+		repo.add<BuiltinFuncNode>({
+			"Maths",
+			"pow",
+			"Pow",
+			{
+				{ "A", Types::scalar},
+				{ "B", Types::scalar},
+			},
+			{
+				{ "", Types::scalar},
+			},
+			{
+				{ {Types::none, Types::none}, {Types::none} }
+			},
+		}, "pow");
+
+		auto addSingleInputOutputGen = [&](auto func, auto name)
+		{
+			repo.add<BuiltinFuncNode>({
+				"Maths",
+				func,
+				name,
+				{
+					{ "", Types::scalar},
+				},
+				{
+					{ "", Types::scalar},
+				},
+				{
+					{ {Types::none}, {Types::none} }
+				}
+				}, func);
+		};
 
 		repo.add<BuiltinFuncNode>({
 			"Maths",
@@ -98,6 +169,55 @@ struct BuiltinFuncNode : ExpressionNode
 			{
 				{ {Types::none}, {Types::scalar} }
 			}
-			}, "length");
+		}, "length");
+
+		repo.add<BuiltinFuncNode>({
+			"Maths",
+			"distance",
+			"Distance",
+			{
+				{ "P0", Types::scalar},
+			},
+			{
+				{ "P1", Types::scalar},
+			},
+			{
+				{ {Types::none, Types::none}, {Types::scalar} }
+			}
+		}, "distance");
+
+		repo.add<BuiltinFuncNode>({
+			"Maths",
+			"dot",
+			"Dot",
+			{
+				{ "P0", Types::scalar},
+			},
+			{
+				{ "P1", Types::scalar},
+			},
+			{
+				{ {Types::none, Types::none}, {Types::scalar} }
+			}
+		}, "dot");
+
+		addSingleInputOutputGen("abs", "Absolute");
+		addSingleInputOutputGen("sign", "Sign");
+		addSingleInputOutputGen("floor", "Floor");
+		addSingleInputOutputGen("ceil", "Ceil");
+		addSingleInputOutputGen("fract", "Fractional");
+		addSingleInputOutputGen("trunc", "Truncate");
+		addSingleInputOutputGen("sqrt", "Sqrt");
+		addSingleInputOutputGen("exp", "Exp");
+		addSingleInputOutputGen("log", "Log");
+		addSingleInputOutputGen("log2", "Log2");
+		addSingleInputOutputGen("sin", "Sin");
+		addSingleInputOutputGen("cos", "Cos");
+		addSingleInputOutputGen("tan", "Tan");
+		addSingleInputOutputGen("asin", "ASin");
+		addSingleInputOutputGen("acos", "ACos");
+		addSingleInputOutputGen("atan", "ATan");
+		addSingleInputOutputGen("normalize", "Normalize");
+
 	}
 };
