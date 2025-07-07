@@ -6,6 +6,7 @@
 #include <imgui_node_editor_internal.h>
 
 #include "id-pool.hpp"
+#include "serializer.hpp"
 
 namespace ed = ax::NodeEditor;
 
@@ -93,12 +94,12 @@ struct PinId : SafeId<ShortId, PinId>
 	static constexpr ShortId pinDirMask = 0x80 << pinIndexOffset;
 	static constexpr ShortId pinNodeMask = static_cast<ShortId>(-1) & ~pinIndexMask & ~pinDirMask;
 
-	static PinId makeInput(NodeId nodeId, PinIndex index);
-	static PinId makeOutput(NodeId nodeId, PinIndex index);
+	static inline PinId makeInput(NodeId nodeId, PinIndex index);
+	static inline PinId makeOutput(NodeId nodeId, PinIndex index);
 
-	PinDirection direction() const;
-	PinIndex index() const;
-	NodeId nodeId() const;
+	inline PinDirection direction() const;
+	inline PinIndex index() const;
+	inline NodeId nodeId() const;
 };
 
 struct NodeId : SafeId<ShortId, NodeId>
@@ -119,12 +120,12 @@ struct NodeId : SafeId<ShortId, NodeId>
 		return Get();
 	}
 
-	PinId makeInput(PinId::PinIndex index)
+	inline PinId makeInput(PinId::PinIndex index)
 	{
 		return PinId::makeInput(*this, index);
 	}
 
-	PinId makeOutput(PinId::PinIndex index)
+	inline PinId makeOutput(PinId::PinIndex index)
 	{
 		return PinId::makeOutput(*this, index);
 	}
@@ -218,7 +219,7 @@ namespace std
 	template <>
 	struct hash<NodeId>
 	{
-		size_t operator()(const PinId& id) const noexcept
+		size_t operator()(const NodeId& id) const noexcept
 		{
 			return std::hash<ShortId>{}(id.Get());
 		}
@@ -227,14 +228,14 @@ namespace std
 	template <>
 	struct hash<LinkId>
 	{
-		size_t operator()(const PinId& id) const noexcept
+		size_t operator()(const LinkId& id) const noexcept
 		{
 			return std::hash<LongId>{}(id.Get());
 		}
 	};
 }
 
-std::ostream& operator<<(std::ostream& stream, PinId id)
+inline std::ostream& operator<<(std::ostream& stream, PinId id)
 {
 	return stream << "(" << id.nodeId().Get() << "[" << +id.index() << "]" << (id.direction() == PinDirection::In ? '<' : '>') << ')';
 }
