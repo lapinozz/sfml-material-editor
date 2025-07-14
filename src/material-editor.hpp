@@ -12,6 +12,7 @@
 #include "formatting/Private/UEGraphAdapter.h"
 
 #include "formatting.hpp"
+#include "graph-utils.hpp"
 
 struct MaterialEditor
 {
@@ -178,6 +179,14 @@ struct MaterialEditor
 
 					Formatter formatter{ &graph };
 					formatter.format();
+				}
+				else if (e->code == sf::Keyboard::Key::C && e->control)
+				{
+					copyToClipboard();
+				}
+				else if (e->code == sf::Keyboard::Key::V && e->control)
+				{
+					pasteFromClipboard();
 				}
 			}
 		}
@@ -707,6 +716,94 @@ struct MaterialEditor
 
 		ImGui::End();
 		ImGui::PopStyleVar(1);
+	}
+
+	void copyToClipboard()
+	{
+		auto nodeIds = GraphUtils::getSelectedNodes();
+		if (nodeIds.size() == 0)
+		{
+			return;
+		}
+
+		std::erase_if(nodeIds, [&](auto node)
+		{
+			return dynamic_cast<OutputNode*>(graph.findNode<ExpressionNode>(node)) != nullptr;
+		});
+
+		auto links = graph.links;
+		std::erase_if(links, [&](auto link)
+		{
+			return !nodeIds.contains(link.from().nodeId()) || !nodeIds.contains(link.to().nodeId());
+		});
+
+		auto nodesToSave = nodeIds 
+			| std::views::transform([&](auto node) {return graph.findNode<ExpressionNode>(node); })
+			| std::ranges::to<std::vector>();
+
+		json j;
+		Serializer s(true, j);
+
+		NodeSerializer::repo = &archetypes;
+
+		s.serialize("nodes", nodesToSave);
+		s.serialize("links", links);
+
+		j["type"] = "MLS-subgraph";
+
+		std::string result = j.dump(4);
+		sf::Clipboard::setString(result);
+	}
+
+	void pasteFromClipboard()
+	{	
+		json j = json::parse(sf::Clipboard::getString().toAnsiString());
+		if (j["type"] != "MLS-subgraph")
+		{
+			return;
+		}
+
+		std::unordered_map<NodeId, NodeId> newIdMap;
+		for (auto& node : j["nodes"])
+		{
+			const auto oldId = node["id"].template get<NodeId::InnerType>();
+			const auto newId = graph.idPool.take();
+			newIdMap.emplace(oldId, newId);
+			node["id"] = newId;
+		}
+
+		Serializer s(false, j);
+		NodeSerializer::repo = &archetypes;
+
+		std::vector<LinkId> links;
+		std::vector<Graph::Node::Ptr> nodes;
+
+		s.serialize("nodes", nodes);
+		s.serialize("links", links);
+
+		const auto bounds = GraphUtils::getNodesBound(nodes);
+		const auto center = ed::ScreenToCanvas(ed::GetScreenSize() / 2.f);
+		const auto offset = center - bounds.getCenter();
+		
+		ed::ClearSelection();
+		for (auto& node : nodes)
+		{
+			const auto id = node->id;
+			ed::SelectNode(id, true);
+			ed::SetNodePosition(id, ed::GetNodePosition(id) + offset);
+			graph.AddNode(std::move(node));
+		}
+
+		for (auto& link : links)
+		{
+			PinId from = link.from();
+			PinId to = link.to();
+
+			to = PinId::makeInput(newIdMap.at(to.nodeId()), to.index());
+			from = PinId::makeOutput(newIdMap.at(from.nodeId()), from.index());
+
+			graph.addLink(from, to);
+		}
 	}
 
 	void update()

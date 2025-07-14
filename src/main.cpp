@@ -50,6 +50,11 @@ static void serialize(Serializer& s, Graph::Node::Ptr& n)
 	NodeSerializer::serialize(s, n);
 }
 
+static void serialize(Serializer& s, Graph::Node* n)
+{
+	NodeSerializer::serialize(s, n);
+}
+
 int main()
 {
 	MaterialEditor editor{};

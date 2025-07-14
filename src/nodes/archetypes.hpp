@@ -33,7 +33,8 @@ struct ArchetypeRepo
 struct NodeSerializer
 {
 	static inline ArchetypeRepo* repo{};
-	static void serialize(Serializer& s, Graph::Node::Ptr& n)
+
+	static void serialize(Serializer& s, Graph::Node* n)
 	{
 		assert(repo);
 
@@ -42,6 +43,20 @@ struct NodeSerializer
 			auto& node = static_cast<ExpressionNode&>(*n);
 			s.serialize("type_id", node.archetype->id);
 			node.serialize(s);
+		}
+		else
+		{
+			assert(false && "not supported");
+		}
+	}
+
+	static void serialize(Serializer& s, Graph::Node::Ptr& n)
+	{
+		assert(repo);
+
+		if (s.isSaving)
+		{
+			serialize(s, n.get());
 		}
 		else
 		{
