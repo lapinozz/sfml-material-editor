@@ -206,7 +206,6 @@ struct BuiltinFuncNode : ExpressionNode
 		addSingleInputOutputGen("floor", "Floor");
 		addSingleInputOutputGen("ceil", "Ceil");
 		addSingleInputOutputGen("fract", "Fractional");
-		addSingleInputOutputGen("trunc", "Truncate");
 		addSingleInputOutputGen("sqrt", "Sqrt");
 		addSingleInputOutputGen("exp", "Exp");
 		addSingleInputOutputGen("log", "Log");

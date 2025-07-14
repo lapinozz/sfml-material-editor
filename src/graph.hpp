@@ -41,6 +41,8 @@ struct SafeId
 		s.serialize(value);
 	};
 
+	using InnerType = T;
+
 private:
 	T value;
 };
