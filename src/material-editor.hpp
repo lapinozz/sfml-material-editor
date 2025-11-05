@@ -13,6 +13,7 @@
 
 #include "formatting.hpp"
 #include "graph-utils.hpp"
+#include "material.hpp"
 
 struct MaterialEditor
 {
@@ -21,11 +22,13 @@ struct MaterialEditor
 	ArchetypeRepo archetypes;
 	Graph graph;
 
+	MaterialTemplate materialTemplate;
+	Material::Ptr materialInstance;
+
 	TextEditor vertexEditor;
 	TextEditor fragmentEditor;
 
 	ed::EditorContext* edContext{};
-	sf::Shader shader;
 
 	sf::Clock clock;
 	float runningTime{};
@@ -41,6 +44,8 @@ struct MaterialEditor
 		window{ sf::VideoMode{ { 1800u, 900u } }, "CMake SFML Project", sf::Style::Default, sf::State::Windowed }
 	{
 		window.setVerticalSyncEnabled(true);
+
+		materialInstance = materialTemplate.makeInstance();
 
 		initImgui();
 		initArchetypes();
@@ -569,13 +574,12 @@ struct MaterialEditor
 			vertexCode = std::move(newVertexCode);
 			fragmentCode = std::move(newFragmentCode);
 
+			materialTemplate.setSource(vertexCode, fragmentCode);
 			vertexEditor.SetText(vertexCode);
 			fragmentEditor.SetText(fragmentCode);
-
-			(void)shader.loadFromMemory(vertexCode, fragmentCode);
 		}
 
-		shader.setUniform("time", runningTime);
+		materialInstance->setValue("time", runningTime);
 
 		if (const LinkId link = ed::GetDoubleClickedLink())
 		{
@@ -654,6 +658,89 @@ struct MaterialEditor
 		ImGui::EndChild();
 	}
 
+	void drawParameterEditor()
+	{
+		//ImGui::ShowDemoWindow();
+
+		if(materialTemplate.parameters.size() == 0)
+		{
+			materialTemplate.parameters["test"] = {};
+			materialTemplate.parameters["testes"] = {};
+		}
+
+		std::unordered_map<std::string, std::string> toCopyList;
+		std::unordered_set<std::string> toRemoveList;
+
+		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
+		ImGui::BeginChild("ChildR", ImVec2(0, 260), ImGuiChildFlags_Borders, ImGuiWindowFlags_MenuBar);
+		ImGui::PopStyleVar();
+
+		for(auto& [id, value] : materialTemplate.parameters)
+		{
+			ImGui::PushID(id.c_str());
+			std::string buffer = id;
+
+			ImGui::CollapsingHeader("##header");
+
+			bool focusText = false;
+
+			if (ImGui::BeginPopupContextItem("test"))
+			{
+				if (ImGui::Selectable("Rename"))
+				{
+					focusText = true; 
+					ImGui::CloseCurrentPopup();
+				}
+
+				if (ImGui::Selectable("Delete"))
+				{
+					toRemoveList.insert(id);
+					ImGui::CloseCurrentPopup();
+				}
+
+				if (ImGui::Selectable("Duplicate"))
+				{
+					toCopyList[id + "_copy"] = id;
+					ImGui::CloseCurrentPopup();
+				}
+				ImGui::EndPopup();
+			}
+
+			if (focusText)
+			{
+				ImGui::SetKeyboardFocusHere();
+			}
+
+			ImGui::SameLine();
+
+			ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0, 0, 0, 0));
+			ImGui::InputText("##Name", &buffer);
+			ImGui::PopStyleColor();
+
+			if (ImGui::IsItemDeactivatedAfterEdit())
+			{
+				if (!materialTemplate.parameters.contains(buffer))
+				{
+					toCopyList[buffer] = id;
+					toRemoveList.insert(id);
+				}
+			}
+			ImGui::PopID();
+		}
+
+		ImGui::EndChild();
+
+		for (const auto& toCopy : toCopyList)
+		{
+			materialTemplate.parameters[toCopy.first] = materialTemplate.parameters[toCopy.second];
+		}
+
+		for (const auto& toRemove : toRemoveList)
+		{
+			materialTemplate.parameters.erase(toRemove);
+		}
+	}
+
 	void drawMainWindow()
 	{
 		ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f));
@@ -664,23 +751,43 @@ struct MaterialEditor
 		ImGui::Begin("main", &isOpen, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoBringToFrontOnFocus);
 
 		static ImGuiTableFlags flags = ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersV | ImGuiTableFlags_ContextMenuInBody;
-		ImGui::BeginTable("table", 2, flags);
+		ImGui::BeginTable("table", 3, flags);
 
 		ImGui::TableNextRow();
 
 		ImGui::TableSetColumnIndex(0);
 
-		drawNodeEditor();
+		ImGui::BeginChild("left_side");
+		ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
+		if (ImGui::BeginTabBar("left_tabs", tab_bar_flags))
+		{
+			if (ImGui::BeginTabItem("Params"))
+			{
+				drawParameterEditor();
+
+				ImGui::EndTabItem();
+			}
+			if (ImGui::BeginTabItem("..."))
+			{
+				ImGui::EndTabItem();
+			}
+
+			ImGui::EndTabBar();
+		}
+		ImGui::EndChild();
 
 		ImGui::TableSetColumnIndex(1);
 
+		drawNodeEditor();
+
+		ImGui::TableSetColumnIndex(2);
+
 		ImGui::BeginChild("right_side");
-		ImGuiTabBarFlags tab_bar_flags = ImGuiTabBarFlags_None;
 		if (ImGui::BeginTabBar("right_tabs", tab_bar_flags))
 		{
 			if (ImGui::BeginTabItem("Preview"))
 			{
-				preview.update(shader);
+				preview.update(materialInstance->getShader());
 
 				ImGui::EndTabItem();
 			}

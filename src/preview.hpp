@@ -121,7 +121,7 @@ struct Preview
 		updateShape();
 	}
 
-	void update(sf::Shader& shader)
+	void update(const sf::Shader& shader)
 	{
 		ImGui::Checkbox("Fullscreen", &isFullScreenMode);
 		ImGui::SameLine();
@@ -196,7 +196,7 @@ struct Preview
 				rect.setTexture(&previewTexture.getTexture(), true);
 				sf::RenderStates states;
 
-				shader.setUniform("texture", previewTexture.getTexture());
+				//shader.setUniform("texture", previewTexture.getTexture());
 				states.shader = &shader;
 
 				previewFullscreenTexture.setView({ contentSize / 2, contentSize });
