@@ -48,27 +48,31 @@ struct VecValueNode : ExpressionNode
 			ImGui::SameLine();
 			floatFields[x].update();
 
-			if (x == 0 && (arrity == 3 || arrity == 4))
+		}
+	}
+
+	void drawMiddle() override
+	{
+		if (arrity == 3 || arrity == 4)
+		{
+			std::array<float, 4> floats;
+			for (uint8_t y = 0; y < arrity; y++)
 			{
-				std::array<float, 4> floats;
-				for (uint8_t y = 0; y < arrity; y++)
+				floats[y] = floatFields[y].value;
+			}
+			
+			ImGui::SameLine();
+
+			const auto flags = ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | (arrity == 3 ? ImGuiColorEditFlags_NoAlpha : 0);
+			const  bool colorChanged = ImGui::ColorEdit4("##colorEdit", floats.data(), flags);
+
+			for (uint8_t y = 0; y < arrity; y++)
+			{
+				floatFields[y].value = floats[y];
+
+				if (colorChanged)
 				{
-					floats[y] = floatFields[y].value;
-				}
-
-				ImGui::SameLine();
-
-				const auto flags = ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel | (arrity == 3 ? ImGuiColorEditFlags_NoAlpha : 0);
-				const  bool colorChanged = ImGui::ColorEdit4("##colorEdit", floats.data(), flags);
-
-				for (uint8_t y = 0; y < arrity; y++)
-				{
-					floatFields[y].value = floats[y];
-
-					if (colorChanged)
-					{
-						floatFields[y].widthDirty = true;
-					}
+					floatFields[y].widthDirty = true;
 				}
 			}
 		}
