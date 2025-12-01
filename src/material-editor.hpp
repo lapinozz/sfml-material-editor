@@ -14,6 +14,37 @@
 #include "formatting.hpp"
 #include "graph-utils.hpp"
 #include "material.hpp"
+#include "map-list-box.hpp"
+#include "variant-emplace.hpp"
+
+#include "nfd.h"
+#include "base64.hpp"
+
+ValueType getParameterValueType(const ParameterValue& value)
+{
+	if (auto* float1Value = std::get_if<float>(&value))
+	{
+		return Types::scalar;
+	}
+	else if (auto* float2Value = std::get_if<sf::Vector2f>(&value))
+	{
+		return Types::vec2;
+	}
+	else if (auto* float3Value = std::get_if<sf::Vector3f>(&value))
+	{
+		return Types::vec3;
+	}
+	else if (auto* float4Value = std::get_if<Vector4f>(&value))
+	{
+		return Types::vec4;
+	}
+	else if (auto* textureValue = std::get_if<sf::Texture*>(&value))
+	{
+		return makeValueType<SamplerType>();
+	}
+
+	assert(false);
+}
 
 struct MaterialEditor
 {
@@ -22,11 +53,23 @@ struct MaterialEditor
 	ArchetypeRepo archetypes;
 	Graph graph;
 
+	bool isMaterialDirty{};
+
+	MaterialRepo materialRepo;
 	MaterialTemplate materialTemplate;
 	Material::Ptr materialInstance;
 
+	//TextureReferences textureReferences;
+	std::unordered_map<std::string, std::string> parameterToTextureReference;
+	std::unordered_map<std::string, TextureReference> textureReferences;
+
+	MapListBoxData parametersListBox;
+	MapListBoxData texturesListBox;
+
 	TextEditor vertexEditor;
 	TextEditor fragmentEditor;
+
+	GraphContext graphContext;
 
 	ed::EditorContext* edContext{};
 
@@ -38,7 +81,8 @@ struct MaterialEditor
 	std::string vertexCode;
 	std::string fragmentCode;
 
-	PinId newNodeTargetPin{ 0 };
+	std::vector<PinId> newNodeTargetPins;
+	bool newNodeFilterType = true;
 
 	MaterialEditor() :
 		window{ sf::VideoMode{ { 1800u, 900u } }, "CMake SFML Project", sf::Style::Default, sf::State::Windowed }
@@ -65,9 +109,11 @@ struct MaterialEditor
 		const float baseFontSize = 16.f;
 		const float faFontSize = baseFontSize * 2.0f / 3.0f;
 
+		const float sizeScalar = 1.5f;
+
 		ImGuiIO& io = ImGui::GetIO();
 		io.Fonts->Clear();
-		io.Fonts->AddFontFromFileTTF("./Cousine-Regular.ttf", baseFontSize);
+		io.Fonts->AddFontFromFileTTF("./Cousine-Regular.ttf", baseFontSize * sizeScalar)->Scale = 1.f / sizeScalar;
 
 		ImFontConfig font_cfg;
 		font_cfg.FontDataOwnedByAtlas = false;
@@ -75,8 +121,8 @@ struct MaterialEditor
 		ImFontConfig icons_config;
 		font_cfg.MergeMode = true;
 		font_cfg.PixelSnapH = true;
-		font_cfg.GlyphMinAdvanceX = faFontSize;
-		io.Fonts->AddFontFromMemoryTTF((void*)s_fa_solid_900_ttf, sizeof(s_fa_solid_900_ttf), faFontSize, &font_cfg, icons_ranges);
+		font_cfg.GlyphMinAdvanceX = faFontSize * sizeScalar;
+		io.Fonts->AddFontFromMemoryTTF((void*)s_fa_solid_900_ttf, sizeof(s_fa_solid_900_ttf), faFontSize * sizeScalar, &font_cfg, icons_ranges)->Scale = 1.f / sizeScalar;
 
 		(void)ImGui::SFML::UpdateFontTexture();
 		ImGui::SFML::GetFontTexture()->setSmooth(true);
@@ -108,6 +154,8 @@ struct MaterialEditor
 		BuiltinFuncNode::registerArchetypes(archetypes);
 		BridgeNode::registerArchetypes(archetypes);
 		AppendNode::registerArchetypes(archetypes);
+		ParameterNode::registerArchetypes(archetypes);
+		SampleTextureNode::registerArchetypes(archetypes);
 	}
 
 	void processEvents()
@@ -149,6 +197,10 @@ struct MaterialEditor
 					s.serialize("nodes", graph.nodes);
 					s.serialize("links", graph.links);
 
+					s.serialize("parameterToTextureReference", parameterToTextureReference);
+					s.serialize("textureReferences", textureReferences);
+					s.serialize("parameters", materialTemplate.parameters);
+
 					ShortId maxId{};
 					for (const auto& node : graph.nodes)
 					{
@@ -160,6 +212,8 @@ struct MaterialEditor
 						maxId = std::max(maxId, node->id.Get());
 					}
 					graph.idPool.reset(maxId + 1);
+
+					isMaterialDirty = true;
 				}
 				else if (e->code == sf::Keyboard::Key::S)
 				{
@@ -170,6 +224,10 @@ struct MaterialEditor
 
 					s.serialize("nodes", graph.nodes);
 					s.serialize("links", graph.links);
+
+					s.serialize("parameterToTextureReference", parameterToTextureReference);
+					s.serialize("textureReferences", textureReferences);
+					s.serialize("parameters", materialTemplate.parameters);
 
 					std::ofstream of("./test.json");
 					of << j;
@@ -197,20 +255,231 @@ struct MaterialEditor
 		}
 	}
 
+	bool canTarget(ValueType outType, ValueType inType)
+	{
+		if (canConvert(outType, inType))
+		{
+			return true;
+		}
+
+		if (!outType && inType.isGenType())
+		{
+			return true;
+		}
+
+		if (outType.isGenType() && !inType)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	bool canTarget(PinId out, PinId in)
+	{
+		if (in == out)
+		{
+			return false;
+		}
+
+		if (in.direction() == out.direction())
+		{
+			return false;
+		}
+
+		if (in.nodeId() == out.nodeId())
+		{
+			return false;
+		}
+
+		if (graph.hasLink({ in, out }))
+		{
+			return false;
+		}
+
+		if (in.direction() == PinDirection::Out)
+		{
+			std::swap(in, out);
+		}
+
+		const auto& outNode = graph.getNode<ExpressionNode>(out.nodeId());
+		const auto& outArchetype = *outNode.archetype;
+		const auto outIndex = out.index();
+		const auto* outBridge = graph.findNode<BridgeNode>(out.nodeId());
+
+		const auto& inNode = graph.getNode<ExpressionNode>(in.nodeId());
+		const auto& inArchetype = *inNode.archetype;
+		const auto inputIndex = in.index();
+		const auto* inBridge = graph.findNode<BridgeNode>(in.nodeId());
+
+		if (inBridge || outBridge)
+		{
+			return true;
+		}
+
+		if (canTarget(outNode.outputs[outIndex].type, inNode.inputs[inputIndex].type))
+		{
+			return true;
+		}
+
+		for (const auto& inOverload : inArchetype.overloads)
+		{
+			if (canTarget(outNode.outputs[outIndex].type, inOverload.inputs[inputIndex]))
+			{
+				return true;
+			}
+		}
+
+		for (const auto& outOverload : outArchetype.overloads)
+		{
+			if (canTarget(outOverload.outputs[outIndex], inNode.inputs[inputIndex].type))
+			{
+				return true;
+			}
+
+			for (const auto& inOverload : inArchetype.overloads)
+			{
+				if (canTarget(outOverload.outputs[outIndex], inOverload.inputs[inputIndex]))
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	int findConnectTarget(const NodeArchetype& out, PinId in)
+	{
+		const auto& inNode = graph.getNode<ExpressionNode>(in.nodeId());
+		const auto& inArchetype = *inNode.archetype;
+		const auto inputIndex = in.index();
+		const auto* inBridge = graph.findNode<BridgeNode>(in.nodeId());
+
+		if (inBridge)
+		{
+			return in.nodeId().makeInput(0);
+		}
+
+		for (int outIndex{}; outIndex < out.outputs.size(); outIndex++)
+		{
+			if (canTarget(out.outputs[outIndex].type, inNode.inputs[inputIndex].type))
+			{
+				return outIndex;
+			}
+
+			for (const auto& inOverload : inArchetype.overloads)
+			{
+				if (canTarget(out.outputs[outIndex].type, inOverload.inputs[inputIndex]))
+				{
+					return outIndex;
+				}
+			}
+		}
+
+		for (const auto& outOverload : out.overloads)
+		{
+			for (int outIndex{}; outIndex < outOverload.outputs.size(); outIndex++)
+			{
+				if (canTarget(outOverload.outputs[outIndex], inNode.inputs[inputIndex].type))
+				{
+					return outIndex;
+				}
+
+				for (const auto& inOverload : inArchetype.overloads)
+				{
+					if (canTarget(outOverload.outputs[outIndex], inOverload.inputs[inputIndex]))
+					{
+						return outIndex;
+					}
+				}
+			}
+		}
+
+		return -1;
+	}
+
+	int findConnectTarget(PinId out, const NodeArchetype& in)
+	{
+		const auto& outNode = graph.getNode<ExpressionNode>(out.nodeId());
+		const auto& outArchetype = *outNode.archetype;
+		const auto outIndex = out.index();
+		const auto* outBridge = graph.findNode<BridgeNode>(out.nodeId());
+
+		if (outBridge)
+		{
+			return out.nodeId().makeOutput(0);
+		}
+
+		for (int inputIndex{}; inputIndex < in.inputs.size(); inputIndex++)
+		{
+			if (canTarget(outNode.outputs[outIndex].type, in.inputs[inputIndex].type))
+			{
+				return inputIndex;
+			}
+		}
+
+		for (const auto& inOverload : in.overloads)
+		{
+			for (int inputIndex{}; inputIndex < inOverload.inputs.size(); inputIndex++)
+			{
+				if (canTarget(outNode.outputs[outIndex].type, inOverload.inputs[inputIndex]))
+				{
+					return inputIndex;
+				}
+			}
+		}
+
+		for (const auto& outOverload : outArchetype.overloads)
+		{
+			for (int inputIndex{}; inputIndex < in.inputs.size(); inputIndex++)
+			{
+				if (canTarget(outOverload.outputs[outIndex], in.inputs[inputIndex].type))
+				{
+					return inputIndex;
+				}
+			}
+
+			for (const auto& inOverload : in.overloads)
+			{
+				for (int inputIndex{}; inputIndex < inOverload.inputs.size(); inputIndex++)
+				{
+					if (canTarget(outOverload.outputs[outIndex], inOverload.inputs[inputIndex]))
+					{
+						return inputIndex;
+					}
+				}
+			}
+		}
+
+		return -1;
+	}
+
 	void updateCreate()
 	{
 		if (ed::BeginCreate())
 		{
+			bool firstLink = true;
+
 			ed::PinId edInputPinId, edOutputPinId;
-			if (ed::QueryNewLink(&edInputPinId, &edOutputPinId, ImVec4(255, 0, 0, 255)))
+			while (ed::QueryNewLink(&edInputPinId, &edOutputPinId, ImVec4(255, 255, 255, 255)))
 			{
 				PinId inputPinId{ edInputPinId };
 				PinId outputPinId{ edOutputPinId };
 
+				if (ImGui::GetIO().KeyCtrl)
+				{
+					graph.removeLinks(inputPinId);
+				}
+
 				auto* inputBridge = inputPinId ? graph.findNode<BridgeNode>(inputPinId.nodeId()) : nullptr;
 				auto* outputBridge = outputPinId ? graph.findNode<BridgeNode>(outputPinId.nodeId()) : nullptr;
 
-				if (inputPinId && outputPinId)
+				if (!inputPinId || !outputPinId)
+				{
+					ed::RejectNewItem();
+				}
+				else
 				{
 					if (inputPinId == outputPinId)
 					{
@@ -247,62 +516,42 @@ struct MaterialEditor
 						inputPinId = inputBridge->connectionMode == BridgeNode::ConnectionMode::Output ? inputPinId.nodeId().makeOutput(0) : inputPinId.nodeId().makeInput(0);
 					}
 
-					const auto canAddLink = [&](PinId in, PinId out)
-						{
-							if (in == out)
-							{
-								return false;
-							}
-
-							if (in.direction() == out.direction())
-							{
-								return false;
-							}
-
-							if (in.nodeId() == out.nodeId())
-							{
-								return false;
-							}
-
-							if (graph.hasLink({ in, out }))
-							{
-								return false;
-							}
-
-							return true;
-						};
-
-					const auto valid = canAddLink(inputPinId, outputPinId);
-					if (ed::AcceptNewItem(valid ? ImVec4(255, 255, 255, 255) : ImVec4(255, 0, 0, 255)))
+					const auto valid = canTarget(inputPinId, outputPinId);
+					if(!valid)
 					{
-						if (valid)
-						{
-							const auto oldLink = outputPinId.direction() == PinDirection::In ? graph.findLink(outputPinId) : graph.findLink(inputPinId);
-							if (oldLink)
-							{
-								graph.removeLink(oldLink);
-							}
+						ed::RejectNewItem(ImVec4(255, 0, 0, 255));
+					}
+					else if (ed::AcceptNewItem(ImVec4(255, 255, 255, 255)))
+					{
+						graph.addLink(inputPinId, outputPinId);
+					}
+				}
 
-							graph.addLink(inputPinId, outputPinId);
+				firstLink = false;
+			}
+
+			ed::PinId edPinId = 0;
+			while (ed::QueryNewNode(&edPinId))
+			{
+				PinId pinId{ edPinId };
+
+				if (ed::AcceptNewItem(ImVec4(255, 255, 255, 255)))
+				{
+					if (auto* bridge = graph.findNode<BridgeNode>(pinId.nodeId()))
+					{
+						if (bridge->connectionMode == BridgeNode::ConnectionMode::Input)
+						{
+							newNodeTargetPins.push_back(pinId.nodeId().makeInput(0));
 						}
 						else
 						{
-							ed::RejectNewItem(ImVec4(0, 255, 0, 255));
+							newNodeTargetPins.push_back(pinId.nodeId().makeOutput(0));
 						}
 					}
 					else
 					{
+						newNodeTargetPins.push_back(pinId);
 					}
-
-				}
-			}
-
-			ed::PinId pinId = 0;
-			if (ed::QueryNewNode(&pinId))
-			{
-				if (ed::AcceptNewItem())
-				{
-					newNodeTargetPin = pinId;
 
 					ed::Suspend();
 					ImGui::OpenPopup("Create New Node");
@@ -351,7 +600,7 @@ struct MaterialEditor
 			auto newNodePostion = ed::ScreenToCanvas(ImGui::GetMousePosOnOpeningCurrentPopup());
 			NodeId newNode{ 0 };
 
-			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(0, 3));
+			ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(8, 3));
 
 			static std::string filterStr;
 			static int selectionIndex = -1;
@@ -364,6 +613,18 @@ struct MaterialEditor
 			}
 
 			bool openAll = ImGui::InputTextWithHint("##filter", ICON_FA_MAGNIFYING_GLASS " Search", &filterStr);
+
+			ImGui::SameLine();
+
+			ImGui::PushStyleColor(ImGuiCol_Border, ImVec4(1.f, 1.f, 1.f, 0.25f));
+			ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.f);
+
+			ImGui::Checkbox("##filter_bool", &newNodeFilterType);
+
+			ImGui::PopStyleColor();
+			ImGui::PopStyleVar();
+
+			ImGui::SetItemTooltip("Filter by node type");
 
 			if (openAll || ImGui::IsWindowAppearing())
 			{
@@ -389,34 +650,67 @@ struct MaterialEditor
 
 			std::unordered_map<std::string, std::vector<std::string>> categories;
 
-			const auto isFilteredOut = [&](const auto& arch)
+			const auto isNameFilteredOut = [&](const auto& arch)
+			{
+				if (filterStr.empty())
 				{
-					if (filterStr.empty())
-					{
-						return false;
-					}
+					return false;
+				}
 
-					if (arch.category.contains(filterStr))
-					{
-						return false;
-					}
+				if (arch.category.contains(filterStr))
+				{
+					return false;
+				}
 
-					if (arch.id.contains(filterStr))
-					{
-						return false;
-					}
+				if (arch.id.contains(filterStr))
+				{
+					return false;
+				}
 
-					if (arch.title.contains(filterStr))
-					{
-						return false;
-					}
+				if (arch.title.contains(filterStr))
+				{
+					return false;
+				}
 
-					return true;
-				};
+				return true;
+			};
+
+			const auto isTypeFilteredOut = [&](const auto& arch)
+			{
+				if (!newNodeFilterType)
+				{
+					return false;
+				}
+
+				if (newNodeTargetPins.empty())
+				{
+					return false;
+				}
+				
+				for (const auto targetPin : newNodeTargetPins)
+				{
+					if (targetPin.direction() == PinDirection::In)
+					{
+						if (findConnectTarget(arch, targetPin) >= 0)
+						{
+							return false;
+						}
+					}
+					else
+					{
+						if (findConnectTarget(targetPin, arch) >= 0)
+						{
+							return false;
+						}
+					}
+				}
+
+				return true;
+			};
 
 			for (const auto& [id, archetype] : archetypes.archetypes)
 			{
-				if (!isFilteredOut(archetype))
+				if (!isNameFilteredOut(archetype) && !isTypeFilteredOut(archetype))
 				{
 					categories[archetype.category].push_back(archetype.id);
 				}
@@ -486,26 +780,35 @@ struct MaterialEditor
 				ImGui::CloseCurrentPopup();
 
 				ed::SetNodePosition(newNode, newNodePostion);
-				if (newNodeTargetPin)
+
+				const auto& arch = *graph.findNode<ExpressionNode>(newNode)->archetype;
+
+				for (const auto targetPin : newNodeTargetPins)
 				{
-					if (newNodeTargetPin.direction() == PinDirection::In)
+					if (targetPin.direction() == PinDirection::In)
 					{
-						graph.addLink(newNodeTargetPin, newNode.makeOutput(0));
+						if (auto index = findConnectTarget(arch, targetPin); index >= 0)
+						{
+							graph.addLink(targetPin, newNode.makeOutput(index));
+						}
 					}
 					else
 					{
-						graph.addLink(newNode.makeInput(0), newNodeTargetPin);
+						if (auto index = findConnectTarget(targetPin, arch); index >= 0)
+						{
+							graph.addLink(targetPin, newNode.makeInput(index));
+						}
 					}
 				}
 
-				newNodeTargetPin = { 0 };
+				newNodeTargetPins.clear();
 			}
 
 			ImGui::EndPopup();
 		}
 		else
 		{
-			newNodeTargetPin = { 0 };
+			newNodeTargetPins.clear();
 		}
 		ed::Resume();
 	}
@@ -521,6 +824,12 @@ struct MaterialEditor
 		CodeGenerator vertexGen(graph, CodeGenerator::Type::Vertex);
 		CodeGenerator fragmentGen(graph, CodeGenerator::Type::Fragment);
 
+		graphContext.parameterTypes.clear();
+		for (const auto& [id, parameter]: materialTemplate.parameters)
+		{
+			graphContext.parameterTypes[id] = getParameterValueType(parameter.defaultValue);
+		}
+
 		for (auto& node : graph.nodes)
 		{
 			if (!node)
@@ -528,7 +837,7 @@ struct MaterialEditor
 				continue;
 			}
 
-			static_cast<ExpressionNode&>(*node).update(graph);
+			static_cast<ExpressionNode&>(*node).update(&graphContext);
 		}
 
 		for (auto& link : graph.links)
@@ -574,9 +883,29 @@ struct MaterialEditor
 			vertexCode = std::move(newVertexCode);
 			fragmentCode = std::move(newFragmentCode);
 
-			materialTemplate.setSource(vertexCode, fragmentCode);
 			vertexEditor.SetText(vertexCode);
 			fragmentEditor.SetText(fragmentCode);
+
+			isMaterialDirty = true;
+		}
+
+		if (isMaterialDirty)
+		{
+			isMaterialDirty = false;
+
+			materialRepo.ownedTextures.clear();
+			for (const auto& pair : parameterToTextureReference)
+			{
+				auto it = textureReferences.find(pair.second);
+				if (it != textureReferences.end())
+				{
+					auto texture = std::make_unique<sf::Texture>(defaultTextureLoader(it->second));
+					materialInstance->setValue(pair.first, texture.get());
+					texture.release();
+				}
+			}
+
+			materialTemplate.setSource(vertexCode, fragmentCode);
 		}
 
 		materialInstance->setValue("time", runningTime);
@@ -649,6 +978,14 @@ struct MaterialEditor
 			ed::NavigateToContent(0.25f);
 		}
 
+		if (ImGui::IsMouseClicked(ImGuiMouseButton_Left) && ImGui::GetIO().KeyAlt)
+		{
+			if (const PinId pin = ed::GetHoveredPin())
+			{
+				graph.removeLinks(pin);
+			}
+		}
+
 		updateCreate();
 		updateDelete();
 
@@ -660,84 +997,236 @@ struct MaterialEditor
 
 	void drawParameterEditor()
 	{
-		//ImGui::ShowDemoWindow();
-
-		if(materialTemplate.parameters.size() == 0)
+		auto& parameters = materialTemplate.parameters;
+		if (mapListBox("Parameters", parametersListBox, parameters))
 		{
-			materialTemplate.parameters["test"] = {};
-			materialTemplate.parameters["testes"] = {};
+			isMaterialDirty = true;
+
+			if (parametersListBox.removed)
+			{
+				parameterToTextureReference.erase(*parametersListBox.removed);
+			}
+			else if (parametersListBox.renamed)
+			{
+				parameterToTextureReference[parametersListBox.renamed->second] = parameterToTextureReference[parametersListBox.renamed->first];
+				parameterToTextureReference.erase(parametersListBox.renamed->first);
+			}
 		}
 
-		std::unordered_map<std::string, std::string> toCopyList;
-		std::unordered_set<std::string> toRemoveList;
+		const auto& selectedId = parametersListBox.selectedId;
 
-		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 5.0f);
-		ImGui::BeginChild("ChildR", ImVec2(0, 260), ImGuiChildFlags_Borders, ImGuiWindowFlags_MenuBar);
-		ImGui::PopStyleVar();
-
-		for(auto& [id, value] : materialTemplate.parameters)
+		if (parameters.contains(selectedId))
 		{
-			ImGui::PushID(id.c_str());
-			std::string buffer = id;
+			auto& parameter = parameters[selectedId];
 
-			ImGui::CollapsingHeader("##header");
-
-			bool focusText = false;
-
-			if (ImGui::BeginPopupContextItem("test"))
+			const auto getFloatSpan = [](auto& variant) -> std::span<float>
 			{
-				if (ImGui::Selectable("Rename"))
+				if (auto* float1Value = std::get_if<float>(&variant))
 				{
-					focusText = true; 
-					ImGui::CloseCurrentPopup();
+					return { float1Value, 1 };
+				}
+				else if (auto* float2Value = std::get_if<sf::Vector2f>(&variant))
+				{
+					return { &float2Value->x, 2 };
+				}
+				else if (auto* float3Value = std::get_if<sf::Vector3f>(&variant))
+				{
+					return { &float3Value->x, 3 };
+				}
+				else if (auto* float4Value = std::get_if<Vector4f>(&variant))
+				{
+					return { &float4Value->x, 4 };
 				}
 
-				if (ImGui::Selectable("Delete"))
+				return {};
+			};
+
+			const auto itemLabels = "Float\0Vec2\0Vec3\0Vec4\0Texture\0";
+			int typeIndex = parameter.defaultValue.index();
+			if (ImGui::Combo("Type", &typeIndex, itemLabels))
+			{
+				Vector4f oldValues{};
+				if (auto floatSpan = getFloatSpan(parameter.defaultValue); floatSpan.size() > 0)
 				{
-					toRemoveList.insert(id);
-					ImGui::CloseCurrentPopup();
+					std::copy(floatSpan.begin(), floatSpan.end(), &oldValues.x);
 				}
 
-				if (ImGui::Selectable("Duplicate"))
+				variantEmplace(parameter.defaultValue, typeIndex);
+
+				if (auto floatSpan = getFloatSpan(parameter.defaultValue); floatSpan.size() > 0)
 				{
-					toCopyList[id + "_copy"] = id;
-					ImGui::CloseCurrentPopup();
+					std::copy(&oldValues.x, &oldValues.x + floatSpan.size(),  floatSpan.data());
 				}
-				ImGui::EndPopup();
+
+				isMaterialDirty = true;
 			}
 
-			if (focusText)
+			if (auto floatSpan = getFloatSpan(parameter.defaultValue); floatSpan.size() > 0)
 			{
-				ImGui::SetKeyboardFocusHere();
-			}
-
-			ImGui::SameLine();
-
-			ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0, 0, 0, 0));
-			ImGui::InputText("##Name", &buffer);
-			ImGui::PopStyleColor();
-
-			if (ImGui::IsItemDeactivatedAfterEdit())
-			{
-				if (!materialTemplate.parameters.contains(buffer))
+				if (floatSpan.size() == 1)
 				{
-					toCopyList[buffer] = id;
-					toRemoveList.insert(id);
+					isMaterialDirty |= ImGui::InputFloat("Default Value", floatSpan.data());
+				}
+				else if (floatSpan.size() == 2)
+				{
+					isMaterialDirty |= ImGui::InputFloat2("Default Value", floatSpan.data());
+				}
+				else if (floatSpan.size() == 3)
+				{
+					isMaterialDirty |= ImGui::InputFloat3("Default Value", floatSpan.data());
+				}
+				else if (floatSpan.size() == 4)
+				{
+					isMaterialDirty |= ImGui::InputFloat4("Default Value", floatSpan.data());
 				}
 			}
-			ImGui::PopID();
+			else if (auto* textureReference = std::get_if<sf::Texture*>(&parameter.defaultValue))
+			{				
+				std::string& currentRef = parameterToTextureReference[selectedId];
+				
+				if (ImGui::BeginCombo("Texture", currentRef.c_str()))
+				{
+					for (const auto& pair : textureReferences)
+					{
+						const auto& textureReference = pair.second;
+						const auto& textureId = pair.first;
+						const bool is_selected = textureId == currentRef;
+						if (ImGui::Selectable(textureId.c_str(), is_selected))
+						{
+							currentRef = textureId;
+
+							isMaterialDirty = true;
+						}
+
+						if (is_selected)
+						{
+							ImGui::SetItemDefaultFocus();
+						}
+					}
+					ImGui::EndCombo();
+				}
+			}
+		}
+	}
+
+	void drawTexturesEditor()
+	{
+		static std::optional<sf::Texture> previewTexture;
+
+		bool reloadTexture{};
+
+		if (mapListBox("Parameters", texturesListBox, textureReferences))
+		{
+			reloadTexture = true;
 		}
 
-		ImGui::EndChild();
+		const auto& selectedId = texturesListBox.selectedId;
 
-		for (const auto& toCopy : toCopyList)
+		if (textureReferences.contains(selectedId))
 		{
-			materialTemplate.parameters[toCopy.first] = materialTemplate.parameters[toCopy.second];
-		}
+			auto& textureReference = textureReferences[selectedId];
 
-		for (const auto& toRemove : toRemoveList)
-		{
-			materialTemplate.parameters.erase(toRemove);
+			const auto itemLabels = "Id\0Path\0Embeded\0";
+			if (ImGui::Combo("Type", &(int&)textureReference.type, itemLabels))
+			{
+				reloadTexture = true;
+				textureReference.data = {};
+			}
+
+			if (textureReference.type == TextureReference::Type::Id)
+			{
+				textureReference.data = selectedId;
+			}
+			else if(textureReference.type == TextureReference::Type::Path)
+			{
+				const bool isValidFile = std::filesystem::exists(std::filesystem::absolute(textureReference.data));
+				ImGui::PushStyleColor(ImGuiCol_::ImGuiCol_Text, isValidFile ? IM_COL32(255, 255, 255, 255) : IM_COL32(255, 0, 0, 255));
+				reloadTexture = reloadTexture || ImGui::InputText("Source File", &textureReference.data);
+				ImGui::PopStyleColor();
+
+				ImGui::SameLine();
+
+				if (ImGui::Button("..."))
+				{
+					nfdu8filteritem_t filter{ "Image File", "bmp,png,tga,jpg,gif,psd,hdr,pic,pnm" };
+					nfdopendialogu8args_t args = { 0 };
+					args.filterList = &filter;
+					args.filterCount = 1;
+					nfdu8char_t* outPath;
+					nfdresult_t result = NFD_OpenDialogU8_With(&outPath, &args);
+					if (result == NFD_OKAY)
+					{
+						textureReference.data = outPath;
+						textureReference.data = std::filesystem::relative(textureReference.data).string();
+						reloadTexture = true;
+						NFD_FreePathU8(outPath);
+					}
+				}
+			}
+			else if(textureReference.type == TextureReference::Type::Embedded)
+			{
+				if (ImGui::Button("Select Image"))
+				{
+					nfdu8filteritem_t filter{ "Image File", "bmp,png,tga,jpg,gif,psd,hdr,pic,pnm" };
+					nfdopendialogu8args_t args = { 0 };
+					args.filterList = &filter;
+					args.filterCount = 1;
+					nfdu8char_t* outPath;
+					nfdresult_t result = NFD_OpenDialogU8_With(&outPath, &args);
+					if (result == NFD_OKAY)
+					{
+						std::string path = outPath;
+						path = std::filesystem::relative(path).string();
+
+						std::ifstream inputFile(path, std::ios_base::binary);
+
+						if (inputFile)
+						{
+							const std::string fileContent{
+								(std::istreambuf_iterator<char>(inputFile)),
+								std::istreambuf_iterator<char>()
+							};
+
+							textureReference.data = base64::to_base64(fileContent);
+						}
+
+						reloadTexture = true;
+						NFD_FreePathU8(outPath);
+					}
+				}
+			}
+
+			if (reloadTexture)
+			{
+				isMaterialDirty = true;
+				previewTexture = std::nullopt;
+
+				if (textureReference.type == TextureReference::Type::Path)
+				{
+					previewTexture.emplace();
+					previewTexture->loadFromFile(textureReference.data);
+				}
+				else if (textureReference.type == TextureReference::Type::Embedded)
+				{
+					previewTexture.emplace();
+
+					const std::string textureData = base64::from_base64(textureReference.data);
+					previewTexture->loadFromMemory(textureData.data(), textureData.size());
+				}
+			}
+
+			if (previewTexture && previewTexture->getSize().x && previewTexture->getSize().y)
+			{
+				ImGuiStyle& style = ImGui::GetStyle();
+				float avail = ImGui::GetContentRegionAvail().x - style.FramePadding.x * 2.0f - 100.f;
+				const auto scale = std::min({ avail / previewTexture->getSize().x, avail / previewTexture->getSize().y, 1.f});
+
+				sf::Sprite sprite(*previewTexture);
+				sprite.scale({ scale, scale });
+				ImGui::SetCursorPosX((avail - previewTexture->getSize().x * scale) / 2);
+
+				ImGui::Image(sprite);
+			}
 		}
 	}
 
@@ -767,8 +1256,10 @@ struct MaterialEditor
 
 				ImGui::EndTabItem();
 			}
-			if (ImGui::BeginTabItem("..."))
+			if (ImGui::BeginTabItem("Textures"))
 			{
+				drawTexturesEditor();
+
 				ImGui::EndTabItem();
 			}
 

@@ -290,7 +290,11 @@ struct Graph
 
 	void addLink(PinId in, PinId out)
 	{
-		links.emplace(LinkId{ out, in });
+		LinkId link{ out, in };
+
+		removeLinks(link.to());
+
+		links.emplace(link);
 	}
 
 	void removeLink(LinkId id)
@@ -310,6 +314,21 @@ struct Graph
 		while (true)
 		{
 			it = std::find_if(it, links.end(), [&](const auto& link) {return id == link.from().nodeId() || id == link.to().nodeId(); });
+			if (it == links.end())
+			{
+				break;
+			}
+
+			it = links.erase(it);
+		}
+	}
+
+	void removeLinks(PinId id)
+	{
+		auto it = links.begin();
+		while (true)
+		{
+			it = std::find_if(it, links.end(), [&](const auto& link) {return id == link.from() || id == link.to(); });
 			if (it == links.end())
 			{
 				break;

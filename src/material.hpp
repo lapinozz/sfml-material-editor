@@ -9,6 +9,9 @@
 #include <memory>
 #include <functional>
 
+#include "serializer.hpp"
+#include "sfml-serialization.hpp"
+
 using Vector4f = sf::Glsl::Vec4; //std::array<float, 4>;
 using ParameterValue = std::variant<float, sf::Vector2f, sf::Vector3f, Vector4f, sf::Texture*>;
 
@@ -23,8 +26,7 @@ enum class ParamterType
 
 struct Parameter
 {
-	ParamterType type;
-	std::optional<ParameterValue> defaultValue;
+	ParameterValue defaultValue;
 };
 
 struct MaterialTemplate
@@ -104,16 +106,22 @@ struct TextureReference
 		Path,
 		Embedded
 	};
+
+	std::string id;
+
+	Type type;
 	std::string data;
 };
+using TextureReferences = std::vector<TextureReference>;
 
 sf::Texture defaultTextureLoader(const TextureReference& textureReference);
-using TextureLoadingCallback = std::function<sf::Texture* (TextureReference)>;
+using TextureLoadingCallback = std::function<sf::Texture* (const TextureReference&)>;
 
 class MaterialRepo
 {
+public:
 	std::vector<sf::Texture> ownedTextures;
-	//std::vector<sf::Texture*> referencedTextures;
+	std::vector<sf::Texture*> referencedTextures;
 	std::unordered_map<std::string, MaterialTemplate> templates;
 
 	std::unique_ptr<Material> makeInstance(const std::string& templateId)
@@ -123,3 +131,22 @@ class MaterialRepo
 
 	static std::optional<MaterialRepo> loadFromFile(std::string_view path, const TextureLoadingCallback& textureLoadingCallback = {});
 };
+
+inline void serialize(Serializer& s, Parameter& p)
+{
+	s.serialize("defaultValue", p.defaultValue);
+}
+
+inline void serialize(Serializer& s, TextureReference& tr)
+{
+	s.serialize("id", tr.id);
+	s.serialize("type", tr.type);
+	s.serialize("data", tr.data);
+}
+
+// dirty hack
+inline void serialize(Serializer& s, sf::Texture* ptr)
+{
+	static_assert(sizeof(ptr) == sizeof(std::uint64_t));
+	s.serialize((std::uint64_t&)ptr);
+}

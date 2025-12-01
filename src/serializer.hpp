@@ -7,6 +7,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include "variant-emplace.hpp"
+
 using json = nlohmann::json;
 
 struct Serializer
@@ -168,9 +170,60 @@ void serialize(Serializer& s, std::set<T>& set)
 	);
 }
 
+template<typename Key, typename Value>
+void serialize(Serializer& s, std::pair<Key, Value>& pair)
+{
+	s.at(0).serialize(pair.first);
+	s.at(1).serialize(pair.second);
+}
+
+template<typename Key, typename Value>
+void serialize(Serializer& s, std::unordered_map<Key, Value>& map)
+{
+	using Pair = std::pair<Key, Value>;
+
+	s.serializeValue<std::vector<Pair>>
+	(
+		[&]()
+		{
+			std::vector<Pair> pairs;
+			for (const auto& pair : map)
+			{
+				pairs.push_back(pair);
+			}
+			return pairs;
+		},
+		[&](auto& pairs)
+		{
+			map = {pairs.begin(), pairs.end()};
+		}
+	);
+}
+
 template<typename T>
 requires std::is_enum_v<T>
 void serialize(Serializer& s, T& e)
 {
 	serialize(s, reinterpret_cast<std::underlying_type_t<T>&>(e));
+}
+
+template<typename...Ts>
+void serialize(Serializer& s, std::variant<Ts...>& variant)
+{
+	if (s.isSaving)
+	{
+		std::size_t variantIndex = variant.index();
+		s.serialize("index", variantIndex);
+	}
+	else
+	{
+		std::size_t variantIndex;
+		s.serialize("index", variantIndex);
+		variantEmplace(variant, variantIndex);
+	}
+
+	std::visit([&](auto& value)
+	{
+		s.serialize("value", value);
+	}, variant);
 }

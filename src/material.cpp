@@ -1,5 +1,7 @@
 #include "material.hpp"
 
+#include "base64.hpp"
+
 std::optional<MaterialRepo> MaterialRepo::loadFromFile(std::string_view path, const TextureLoadingCallback& textureLoadingCallback)
 {
     return std::optional<MaterialRepo>();
@@ -41,15 +43,15 @@ void Material::setUniform(const std::string& name, ParameterValue param)
 	{
 		if (*texture)
 		{
-			shader.setUniform(name, **texture);
+			shader.setUniform("P_" + name, **texture);
 		}
 	}
 	else
 	{
 		std::visit([&](auto value) -> void
-			{
-				shader.setUniform(name, value);
-			}, param);
+		{
+			shader.setUniform("P_" + name, value);
+		}, param);
 	}
 }
 
@@ -70,9 +72,9 @@ void Material::updateParameters()
 			const auto& name = pair.first;
 			const auto& param = pair.second;
 
-			if (param.defaultValue && !values.contains(name))
+			if (!values.contains(name))
 			{
-				setUniform(name, *param.defaultValue);
+				setUniform(name, param.defaultValue);
 			}
 		}
 	}
@@ -110,5 +112,13 @@ void Material::setValue(const std::string& name, ParameterValue param)
 
 sf::Texture defaultTextureLoader(const TextureReference& textureReference)
 {
-	return sf::Texture();
+	sf::Texture texture;
+
+	if (textureReference.type == TextureReference::Type::Embedded)
+	{
+		const std::string textureData = base64::from_base64(textureReference.data);
+		texture.loadFromMemory(textureData.data(), textureData.size());
+	}
+
+	return texture;
 }

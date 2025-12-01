@@ -1077,13 +1077,20 @@ struct CreateItemAction final : EditorAction
     Stage     m_CurrentStage;
     Type      m_ItemType;
     Action    m_UserAction;
-    ImU32     m_LinkColor;
-    float     m_LinkThickness;
-    Pin*      m_LinkStart;
     Pin*      m_LinkEnd;
 
     bool      m_IsActive;
     Pin*      m_DraggedPin;
+
+
+    struct TempLink
+    {
+        PinId startPin;
+        ImU32 color{ IM_COL32_WHITE };
+        float thickness{ 1.f };
+    };
+    std::vector<TempLink> m_TempLinks;
+    int querryLinkIndex{};
 
     int       m_LastChannel = -1;
 
@@ -1354,6 +1361,7 @@ struct EditorContext
     int BreakLinks(PinId pinId);
 
     void FindLinksForNode(NodeId nodeId, vector<Link*>& result, bool add = false);
+    void FindLinksForPin(PinId pinId, vector<Link*>& result, bool add = false);
 
     bool PinHadAnyLinks(PinId pinId);
 

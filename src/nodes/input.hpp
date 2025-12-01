@@ -39,7 +39,7 @@ struct InputNode : ExpressionNode
 			{
 			},
 			{
-				{ "", Types::scalar}
+				{ "", Types::vec2}
 			}
 		}, Types::vec2, "gl_TexCoord[0].xy");
 	}

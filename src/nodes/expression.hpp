@@ -3,10 +3,20 @@
 #include "../constants.hpp"
 
 struct CodeGenerator;
+struct NodeArchetype;
+
+using ParameterTypeMap = std::unordered_map<std::string, ValueType>;
+struct GraphContext
+{
+	ParameterTypeMap parameterTypes;
+};
 
 struct ExpressionNode : Graph::Node
 {
-	struct NodeArchetype* archetype;
+	NodeArchetype* archetype;
+	GraphContext* graphContext{};
+
+	std::string error;
 
 	struct Input : public NodeArchetype::Input
 	{
@@ -35,7 +45,9 @@ struct ExpressionNode : Graph::Node
 
 	using Ptr = std::unique_ptr<ExpressionNode>;
 
-	ExpressionNode(struct NodeArchetype* archetype) : archetype{ archetype }, inputs{ archetype->inputs.begin(), archetype->inputs.end() }, outputs{archetype->outputs.begin(), archetype->outputs.end() }
+	ExpressionNode(struct NodeArchetype* archetype) : archetype{ archetype }, 
+													  inputs{ archetype->inputs.begin(), archetype->inputs.end() }, 
+													  outputs{ archetype->outputs.begin(), archetype->outputs.end() }
 	{
 
 	}
@@ -64,7 +76,7 @@ struct ExpressionNode : Graph::Node
 
 		std::vector<ValueField> fields;
 
-		if(s.isSaving)
+		if (s.isSaving)
 		{
 			fields.reserve(inputs.size());
 			for (auto& input : inputs)
@@ -84,8 +96,12 @@ struct ExpressionNode : Graph::Node
 		}
 	}
 
-	virtual void update(const Graph& graph)
+	virtual void update(GraphContext* inGraphContext)
 	{
+		graphContext = inGraphContext;
+
+		error = {};
+
 		for (std::size_t x{}; x < inputs.size(); x++)
 		{
 			inputs[x].link = {};
@@ -117,24 +133,24 @@ struct ExpressionNode : Graph::Node
 
 		ImGui::BeginHorizontal("content");
 
-			ImGui::BeginVertical("inputs");
-				drawInputPins();
-				ImGui::Spring(1, 0);
-			ImGui::EndVertical();
+		ImGui::BeginVertical("inputs");
+		drawInputPins();
+		ImGui::Spring(1, 0);
+		ImGui::EndVertical();
 
-			ImGui::Spring(1, 0);
+		ImGui::Spring(1, 0);
 
-			ImGui::BeginVertical("middle", ImVec2(0, 0), 0.5);
-				drawMiddle();
-				ImGui::Spring(1, 0);
-			ImGui::EndVertical();
+		ImGui::BeginVertical("middle", ImVec2(0, 0), 0.5);
+		drawMiddle();
+		ImGui::Spring(1, 0);
+		ImGui::EndVertical();
 
-			ImGui::Spring(1, 0);
+		ImGui::Spring(1, 0);
 
-			ImGui::BeginVertical("outputs", ImVec2(0, 0), 1);
-				drawOutputPins();
-				ImGui::Spring(1, 0);
-			ImGui::EndVertical();
+		ImGui::BeginVertical("outputs", ImVec2(0, 0), 1);
+		drawOutputPins();
+		ImGui::Spring(1, 0);
+		ImGui::EndVertical();
 
 		ImGui::EndHorizontal();
 
@@ -228,7 +244,7 @@ struct ExpressionNode : Graph::Node
 		{
 			ImGui::SameLine();
 
-			if (input.showField)
+			if (input.showField && (input.type.isScalar() || input.type.isVector()))
 			{
 				input.field.update(input.type);
 			}

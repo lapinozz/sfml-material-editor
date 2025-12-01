@@ -27,8 +27,8 @@ struct OutputNode : ExpressionNode
 
 			generator.shaderInputs.push_back("uniform float time;");
 
-			generator.body.push_back("gl_TexCoord[0] = gl_TextureMatrix[0] * gl_MultiTexCoord0;");
-			generator.body.push_back("gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;");
+			generator.body.insert(generator.body.begin(), "gl_TexCoord[0] = gl_TextureMatrix[0] * gl_MultiTexCoord0;");
+			generator.body.insert(generator.body.begin(), "gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;");
 			generator.body.push_back("gl_FrontColor = vec4(" + color.code + ");");
 		}
 		else if (generator.type == CodeGenerator::Type::Fragment)
@@ -36,11 +36,10 @@ struct OutputNode : ExpressionNode
 			const auto color = getInput(0);
 
 			generator.shaderInputs.push_back("uniform sampler2D texture;");
-
 			generator.shaderInputs.push_back("uniform float time;");
 
-			generator.body.push_back("vec4 pixel = texture2D(texture, gl_TexCoord[0].xy);");
-			generator.body.push_back("gl_FragColor = gl_Color * pixel;");
+			//.body.insert(generator.body.begin(), "vec4 pixel = texture2D(texture, gl_TexCoord[0].xy);");
+			//generator.body.push_back("gl_FragColor = gl_Color * pixel;");
 
 			if (color)
 			{

@@ -1945,6 +1945,21 @@ void ed::EditorContext::FindLinksForNode(NodeId nodeId, vector<Link*>& result, b
     }
 }
 
+void ed::EditorContext::FindLinksForPin(PinId pinId, vector<Link*>& result, bool add)
+{
+    if (!add)
+        result.clear();
+
+    for (auto link : m_Links)
+    {
+        if (!link->m_IsLive)
+            continue;
+
+        if (link->m_StartPin->m_ID == pinId || link->m_EndPin->m_ID == pinId)
+            result.push_back(link);
+    }
+}
+
 bool ed::EditorContext::PinHadAnyLinks(PinId pinId)
 {
     auto pin = FindPin(pinId);
@@ -4589,9 +4604,6 @@ ed::CreateItemAction::CreateItemAction(EditorContext* editor):
     m_CurrentStage(None),
     m_ItemType(NoItem),
     m_UserAction(Unknown),
-    m_LinkColor(IM_COL32_WHITE),
-    m_LinkThickness(1.0f),
-    m_LinkStart(nullptr),
     m_LinkEnd(nullptr),
 
     m_IsActive(false),
@@ -4611,7 +4623,30 @@ ed::EditorAction::AcceptResult ed::CreateItemAction::Accept(const Control& contr
     if (control.ActivePin && ImGui::IsMouseDragging(Editor->GetConfig().DragButtonIndex, 1))
     {
         m_DraggedPin = control.ActivePin;
-        DragStart(m_DraggedPin);
+
+        m_ItemType = NoItem;
+
+        m_TempLinks.clear();
+        querryLinkIndex = {};
+
+        if (ImGui::GetIO().KeyCtrl)
+        {
+            DragStart(m_DraggedPin);
+
+            vector<ed::Link*> links;
+            Editor->FindLinksForPin(control.ActivePin->m_ID, links);
+            for (auto* link : links)
+            {
+                m_TempLinks.push_back({ link->m_StartPin == control.ActivePin ? link->m_EndPin->m_ID : link->m_StartPin->m_ID });
+            }
+
+            //Editor->BreakLinks(control.ActivePin->m_ID);
+        }
+        else
+        {
+            DragStart(m_DraggedPin);
+            m_TempLinks.push_back({ control.ActivePin->m_ID });
+        }
 
         Editor->ClearSelection();
     }
@@ -4636,37 +4671,50 @@ bool ed::CreateItemAction::Process(const Control& control)
 
     if (m_DraggedPin && control.ActivePin == m_DraggedPin && (m_CurrentStage == Possible))
     {
-        const auto draggingFromSource = (m_DraggedPin->m_Kind == PinKind::Output);
+        querryLinkIndex = {};
 
-        ed::Pin cursorPin(Editor, 0, draggingFromSource ? PinKind::Input : PinKind::Output);
-        cursorPin.m_Pivot    = ImRect(ImGui::GetMousePos(), ImGui::GetMousePos());
-        cursorPin.m_Dir      = -m_DraggedPin->m_Dir;
-        cursorPin.m_Strength =  m_DraggedPin->m_Strength;
+        for (auto tempLink : m_TempLinks)
+        {
+            auto startPin = Editor->FindPin(tempLink.startPin);
+            const auto draggingFromSource = (startPin->m_Kind == PinKind::Output);
 
-        ed::Link candidate(Editor, 0);
-        candidate.m_Color    = m_LinkColor;
-        candidate.m_StartPin = draggingFromSource ? m_DraggedPin : &cursorPin;
-        candidate.m_EndPin   = draggingFromSource ? &cursorPin : m_DraggedPin;
+            ed::Pin cursorPin(Editor, 0, draggingFromSource ? PinKind::Input : PinKind::Output);
+            cursorPin.m_Pivot = ImRect(ImGui::GetMousePos(), ImGui::GetMousePos());
+            cursorPin.m_Dir = -startPin->m_Dir;
+            cursorPin.m_Strength = startPin->m_Strength;
 
-        ed::Pin*& freePin  = draggingFromSource ? candidate.m_EndPin : candidate.m_StartPin;
+            ed::Link candidate(Editor, 0);
+            candidate.m_Color = tempLink.color;
+            candidate.m_StartPin = draggingFromSource ? startPin : &cursorPin;
+            candidate.m_EndPin = draggingFromSource ? &cursorPin : startPin;
+
+            ed::Pin*& freePin = draggingFromSource ? candidate.m_EndPin : candidate.m_StartPin;
+
+            if (control.HotPin)
+            {
+                if (m_UserAction == UserAccept)
+                    freePin = control.HotPin;
+            }
+
+            auto drawList = Editor->GetDrawList();
+            drawList->ChannelsSetCurrent(c_LinkChannel_NewLink);
+
+            candidate.UpdateEndpoints();
+            candidate.Draw(drawList, tempLink.color, tempLink.thickness);
+        }
 
         if (control.HotPin)
         {
             DropPin(control.HotPin);
-
-            if (m_UserAction == UserAccept)
-                freePin = control.HotPin;
         }
         else if (control.BackgroundHot)
+        {
             DropNode();
+        }
         else
+        {
             DropNothing();
-
-        auto drawList = Editor->GetDrawList();
-        drawList->ChannelsSetCurrent(c_LinkChannel_NewLink);
-
-        candidate.UpdateEndpoints();
-        candidate.Draw(drawList, m_LinkColor, m_LinkThickness);
+        }
     }
     else if (m_CurrentStage == Possible || !control.ActivePin)
     {
@@ -4728,8 +4776,13 @@ void ed::CreateItemAction::ShowMetrics()
 
 void ed::CreateItemAction::SetStyle(ImU32 color, float thickness)
 {
-    m_LinkColor     = color;
-    m_LinkThickness = thickness;
+    if (querryLinkIndex - 1 >= m_TempLinks.size())
+    {
+        return;
+    }
+
+    m_TempLinks[querryLinkIndex - 1].color = color;
+    m_TempLinks[querryLinkIndex - 1].thickness = thickness;
 }
 
 bool ed::CreateItemAction::Begin()
@@ -4739,8 +4792,8 @@ bool ed::CreateItemAction::Begin()
     m_InActive        = true;
     m_CurrentStage    = m_NextStage;
     m_UserAction      = Unknown;
-    m_LinkColor       = IM_COL32_WHITE;
-    m_LinkThickness   = 1.0f;
+
+    querryLinkIndex = {};
 
     if (m_CurrentStage == None)
         return false;
@@ -4774,7 +4827,6 @@ void ed::CreateItemAction::DragStart(Pin* startPin)
     IM_ASSERT(!m_InActive);
 
     m_NextStage = Possible;
-    m_LinkStart = startPin;
     m_LinkEnd   = nullptr;
 }
 
@@ -4790,8 +4842,9 @@ void ed::CreateItemAction::DragEnd()
     {
         m_NextStage = None;
         m_ItemType  = NoItem;
-        m_LinkStart = nullptr;
         m_LinkEnd   = nullptr;
+
+        m_TempLinks.clear();
     }
 }
 
@@ -4826,8 +4879,13 @@ ed::CreateItemAction::Result ed::CreateItemAction::RejectItem()
     if (!m_InActive || m_CurrentStage == None || m_ItemType == NoItem)
         return Indeterminate;
 
-    m_UserAction = UserReject;
+    if (m_UserAction == Unknown)
+    {
+        m_UserAction = UserReject;
+    }
 
+    querryLinkIndex++;
+    
     return True;
 }
 
@@ -4840,12 +4898,19 @@ ed::CreateItemAction::Result ed::CreateItemAction::AcceptItem()
 
     m_UserAction = UserAccept;
 
+    querryLinkIndex++;
+
     if (m_CurrentStage == Create)
     {
-        m_NextStage = None;
-        m_ItemType  = NoItem;
-        m_LinkStart = nullptr;
-        m_LinkEnd   = nullptr;
+        if (querryLinkIndex == m_TempLinks.size())
+        {
+            m_NextStage = None;
+            m_ItemType = NoItem;
+            m_LinkEnd = nullptr;
+
+            m_TempLinks.clear();
+        }
+        
         return True;
     }
     else
@@ -4859,7 +4924,12 @@ ed::CreateItemAction::Result ed::CreateItemAction::QueryLink(PinId* startId, Pin
     if (!m_InActive || m_CurrentStage == None || m_ItemType != Link)
         return Indeterminate;
 
-    auto linkStartId = m_LinkStart->m_ID;
+    if (querryLinkIndex >= m_TempLinks.size())
+    {
+        return Indeterminate;
+    }
+
+    auto linkStartId = m_TempLinks[querryLinkIndex].startPin;
     auto linkEndId   = m_LinkEnd->m_ID;
 
     *startId = linkStartId;
@@ -4886,7 +4956,12 @@ ed::CreateItemAction::Result ed::CreateItemAction::QueryNode(PinId* pinId)
     if (!m_InActive || m_CurrentStage == None || m_ItemType != Node)
         return Indeterminate;
 
-    *pinId = m_LinkStart ? m_LinkStart->m_ID : 0;
+    if (querryLinkIndex >= m_TempLinks.size())
+    {
+        return Indeterminate;
+    }
+
+    *pinId = m_TempLinks[querryLinkIndex].startPin;
 
     Editor->SetUserContext(true);
 

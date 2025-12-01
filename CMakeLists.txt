@@ -9,6 +9,14 @@ include(FetchContent)
 #add_compile_options(-fsanitize=address)
 #add_link_options(-fsanitize=address)
 
+FetchContent_Declare(nativefiledialog
+    GIT_REPOSITORY https://github.com/btzy/nativefiledialog-extended
+    GIT_TAG v1.2.1
+    GIT_SHALLOW ON
+    EXCLUDE_FROM_ALL
+    SYSTEM)
+FetchContent_MakeAvailable(nativefiledialog)
+
 FetchContent_Declare(SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
     GIT_TAG 016bea9491ccafc3529019fe1d403885a8b3a6ae)
@@ -46,20 +54,14 @@ target_include_directories(CMakeSFMLProject PRIVATE ${PROJECT_SOURCE_DIR}/deps/)
 
 target_include_directories(CMakeSFMLProject PRIVATE "${IMNOED_DIR}")
 
-target_link_libraries(CMakeSFMLProject PRIVATE sfml-graphics ImGui-SFML::ImGui-SFML)
-target_compile_definitions(CMakeSFMLProject PRIVATE IMGUI_DEFINE_MATH_OPERATORS)
+target_link_libraries(CMakeSFMLProject PRIVATE sfml-graphics ImGui-SFML::ImGui-SFML nfd::nfd)
+target_compile_definitions(CMakeSFMLProject PUBLIC IMGUI_DEFINE_MATH_OPERATORS)
 target_compile_features(CMakeSFMLProject PRIVATE cxx_std_23)
 
 #if (MSVC AND WIN32 AND NOT MSVC_VERSION VERSION_LESS 142)
 #    target_link_options(CMakeSFMLProject PRIVATE $<$<CONFIG:Debug>:/INCREMENTAL>)
 #    target_compile_options(CMakeSFMLProject PRIVATE $<$<CONFIG:Debug>:/ZI>)
 #endif()
-
-add_custom_command(
-    TARGET CMakeSFMLProject
-    COMMENT "Copy Font"
-    PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${IMGUI_DIR}/misc/fonts/Cousine-Regular.ttf $<TARGET_FILE_DIR:CMakeSFMLProject>
-    VERBATIM)
     
 set_target_properties(
     CMakeSFMLProject PROPERTIES

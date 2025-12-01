@@ -59,7 +59,7 @@ struct CodeGenerator
 
 					input.value = std::move(value);
 				}
-				else if (input.showField && input.type)
+				else if (input.showField && (input.type.isScalar() || input.type.isVector()))
 				{
 					input.field.type = input.type;
 					input.value = input.field.toValue();
