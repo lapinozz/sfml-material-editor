@@ -248,7 +248,7 @@ bool ax::NodeEditor::BeginCreate(const ImVec4& color, float thickness)
 
     if (context.Begin())
     {
-        context.SetStyle(ImColor(color), thickness);
+        //context.SetStyle(ImColor(color), thickness);
         return true;
     }
     else
@@ -271,8 +271,8 @@ bool ax::NodeEditor::QueryNewLink(PinId* startId, PinId* endId, const ImVec4& co
     auto& context = s_Editor->GetItemCreator();
 
     auto result = context.QueryLink(startId, endId);
-    if (result != Result::Indeterminate)
-        context.SetStyle(ImColor(color), thickness);
+    if (result != Result::Indeterminate) {}
+        //context.SetStyle(ImColor(color), thickness);
 
     return result == Result::True;
 }
@@ -293,8 +293,8 @@ bool ax::NodeEditor::QueryNewNode(PinId* pinId, const ImVec4& color, float thick
     auto& context = s_Editor->GetItemCreator();
 
     auto result = context.QueryNode(pinId);
-    if (result != Result::Indeterminate)
-        context.SetStyle(ImColor(color), thickness);
+    if (result != Result::Indeterminate) {}
+      //  context.SetStyle(ImColor(color), thickness);
 
     return result == Result::True;
 }
@@ -315,7 +315,7 @@ bool ax::NodeEditor::AcceptNewItem(const ImVec4& color, float thickness)
     auto& context = s_Editor->GetItemCreator();
 
     auto result = context.AcceptItem();
-    if (result != Result::Indeterminate)
+    if (result != Result::Indeterminate) 
         context.SetStyle(ImColor(color), thickness);
 
     return result == Result::True;

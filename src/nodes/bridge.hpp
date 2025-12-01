@@ -7,7 +7,7 @@ struct BridgeNode : ExpressionNode
 	using ExpressionNode::ExpressionNode;
 
 	enum class ConnectionMode {Neutral, Input, Output};
-	ConnectionMode connectionMode = ConnectionMode::Neutral;;
+	ConnectionMode connectionMode = ConnectionMode::Neutral;
 
 	void evaluate(CodeGenerator& generator) override
 	{

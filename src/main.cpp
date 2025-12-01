@@ -21,7 +21,7 @@
 #include "serializer.hpp"
 
 #include "value.hpp"
-#include "imgui-utils.hpp"
+#include "float-field.hpp"
 #include "graph.hpp"
 
 #include "nodes/archetype.hpp"
@@ -40,6 +40,8 @@
 #include "nodes/constants.hpp"
 #include "nodes/bridge.hpp"
 #include "nodes/append.hpp"
+#include "nodes/parameter.hpp"
+#include "nodes/texture-sample.hpp"
 
 #include "material-editor.hpp"
 

@@ -68,6 +68,10 @@ struct ValueType : std::variant<NoneType, GenType, MatrixType, SamplerType, Arra
 				return std::format("vec{}", t->arrity);
 			}
 		}
+		else if (const auto* y = std::get_if<SamplerType>(this))
+		{
+			return "sampler2D";
+		}
 
 		assert(false);
 	}
@@ -88,6 +92,10 @@ struct ValueType : std::variant<NoneType, GenType, MatrixType, SamplerType, Arra
 			{
 				return { 57, 206, 112, 255 };
 			}
+		}
+		else if (const auto* t = std::get_if<SamplerType>(this))
+		{
+			return { 207, 109, 185 , 255 };
 		}
 
 		assert(false);
@@ -112,6 +120,11 @@ struct ValueType : std::variant<NoneType, GenType, MatrixType, SamplerType, Arra
 
 		return false;
 	}
+
+	bool isGenType() const
+	{
+		return std::holds_alternative<GenType>(*this);
+	}
 };
 
 template<typename T, typename...Args>
@@ -128,11 +141,11 @@ constexpr ValueType makeArrayValueType(std::uint16_t arrity, Args...args)
 
 namespace Types
 {
-	static inline ValueType none{ makeValueType<NoneType>() };
-	static inline ValueType scalar{ makeValueType<GenType>(uint8_t{1}) };
-	static inline ValueType vec2{ makeValueType<GenType>(uint8_t{2}) };
-	static inline ValueType vec3{ makeValueType<GenType>(uint8_t{3}) };
-	static inline ValueType vec4{ makeValueType<GenType>(uint8_t{4}) };
+	static constexpr inline ValueType none{ makeValueType<NoneType>() };
+	static constexpr inline ValueType scalar{ makeValueType<GenType>(uint8_t{1}) };
+	static constexpr inline ValueType vec2{ makeValueType<GenType>(uint8_t{2}) };
+	static constexpr inline ValueType vec3{ makeValueType<GenType>(uint8_t{3}) };
+	static constexpr inline ValueType vec4{ makeValueType<GenType>(uint8_t{4}) };
 
 	ValueType makeVec(uint8_t arrity)
 	{
@@ -149,7 +162,7 @@ bool canConvert(ValueType from, ValueType to)
 
 	if (from == Types::scalar)
 	{
-		if (to != Types::scalar && std::holds_alternative<GenType>(to))
+		if (std::holds_alternative<GenType>(to))
 		{
 			return true;
 		}
