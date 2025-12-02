@@ -27,6 +27,11 @@ struct SampleTextureNode : ExpressionNode
 		setOutput(2, { Types::scalar, result.code + ".a" });
 	}
 
+	void drawMiddle() override
+	{
+		ImGui::Dummy({ 8.f, 0.f });
+	}
+
 	static void registerArchetypes(ArchetypeRepo& repo)
 	{
 		repo.add<SampleTextureNode>({
