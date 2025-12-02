@@ -43,7 +43,7 @@ struct ParameterNode : ExpressionNode
 
 			setOutput(0, Value{it->second, parameterName });
 
-			generator.shaderInputs.push_back(std::format("uniform {} {};", type.toString(), parameterName));
+			generator.shaderInputs[parameterName] = type;
 		}
 	}
 

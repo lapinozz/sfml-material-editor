@@ -20,7 +20,7 @@ struct CodeGenerator
 	Graph& graph;
 	Type type;
 
-	std::vector<std::string> shaderInputs;
+	std::unordered_map<std::string, ValueType> shaderInputs;
 	std::vector<std::string> body;
 
 	std::unordered_map<PinId, Value> cachedValues;
@@ -260,10 +260,9 @@ struct CodeGenerator
 
 		code += "#version 120\n";
 
-		for (const auto& str : shaderInputs)
+		for (const auto& [name, type] : shaderInputs)
 		{
-			code += str;
-			code += "\n";
+			code += std::format("uniform {} {}\n;", type.toString(), name);
 		}
 
 		code += "void main()\n{\n";
