@@ -188,17 +188,19 @@ struct Preview
 			{
 				if (previewFullscreenTexture.getSize() != previewTexture.getSize())
 				{
-					(void)previewFullscreenTexture.resize(sf::Vector2u(contentSize.x, contentSize.y));
+					(void)previewFullscreenTexture.resize(previewTexture.getSize());
 				}
 
 				sf::RectangleShape rect(contentSize);
 				rect.setFillColor(sf::Color::White);
-				rect.setTexture(&previewTexture.getTexture(), true);
+				//rect.setTexture(&previewTexture.getTexture(), true);
+				rect.setTextureRect({ {0, 0}, {1, 1} });
 				sf::RenderStates states;
 
 				//shader.setUniform("texture", previewTexture.getTexture());
 				states.shader = &shader;
 
+				previewFullscreenTexture.clear();
 				previewFullscreenTexture.setView({ contentSize / 2, contentSize });
 				previewFullscreenTexture.draw(rect, states);
 				previewFullscreenTexture.display();
