@@ -8,14 +8,24 @@ struct InputNode : ExpressionNode
 
 	ValueType type;
 	std::string input;
+	bool isUniform{};
 
-	InputNode(NodeArchetype* archetype, ValueType type, std::string input) : ExpressionNode{ archetype }, type{ type }, input { std::move(input) }
+	InputNode(NodeArchetype* archetype, ValueType type, std::string input, bool isUniform) : 
+		ExpressionNode{ archetype }, 
+		type{ type }, 
+		input { std::move(input) }, 
+		isUniform{ isUniform }
 	{
 
 	}
 
 	void evaluate(CodeGenerator& generator) override
 	{
+		if (isUniform)
+		{
+			generator.shaderInputs[input] = type;
+		}
+
 		setOutput(0, Value{ type, input });
 	}
 
@@ -30,7 +40,7 @@ struct InputNode : ExpressionNode
 			{
 				{ "", Types::scalar}
 			}
-		}, Types::scalar, "time");
+		}, Types::scalar, "P_time", true);
 
 		repo.add<InputNode>({
 			"Inputs",
@@ -41,6 +51,6 @@ struct InputNode : ExpressionNode
 			{
 				{ "", Types::vec2}
 			}
-		}, Types::vec2, "gl_TexCoord[0].xy");
+		}, Types::vec2, "gl_TexCoord[0].xy", false);
 	}
 };
