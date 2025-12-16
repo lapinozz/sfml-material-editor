@@ -74,7 +74,7 @@ struct PinId : SafeId<ShortId, PinId>
 {
 	using SafeId::SafeId;
 
-	PinId(ed::PinId id) : PinId(id.Get())
+	PinId(ed::PinId id) : PinId(static_cast<ShortId>(id.Get()))
 	{
 	}
 
@@ -108,7 +108,7 @@ struct NodeId : SafeId<ShortId, NodeId>
 {
 	using SafeId::SafeId;
 
-	NodeId(ed::NodeId id) : SafeId(id.Get())
+	NodeId(ed::NodeId id) : SafeId(static_cast<ShortId>(id.Get()))
 	{
 	}
 

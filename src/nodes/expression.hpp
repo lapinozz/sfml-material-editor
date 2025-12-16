@@ -205,7 +205,7 @@ struct ExpressionNode : Graph::Node
 
 	virtual void drawInputPins()
 	{
-		for (std::size_t x{}; x < inputs.size(); x++)
+		for (PinId::PinIndex x{}; x < inputs.size(); x++)
 		{
 			auto& input = inputs[x];
 			const auto pinId = id.makeInput(x);
@@ -253,7 +253,7 @@ struct ExpressionNode : Graph::Node
 
 	virtual void drawOutputPins()
 	{
-		for (std::size_t x{}; x < outputs.size(); x++)
+		for (PinId::PinIndex x{}; x < outputs.size(); x++)
 		{
 			//ImGui::Spring(0, 0);
 			const auto& output = outputs[x];
