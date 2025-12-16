@@ -71,7 +71,7 @@ struct CodeGenerator
 			int selectedOverload = -1;
 			ValueType genType{};
 
-			for (size_t overloadIndex{}; overloadIndex < overloads.size(); overloadIndex++)
+			for (int overloadIndex{}; overloadIndex < overloads.size(); overloadIndex++)
 			{
 				const auto& overload = overloads[overloadIndex];
 

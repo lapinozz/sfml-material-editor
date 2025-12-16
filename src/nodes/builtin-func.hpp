@@ -18,7 +18,7 @@ struct BuiltinFuncNode : ExpressionNode
 		std::string code = func + "(";
 
 		const auto inputCount = inputs.size();
-		for (std::size_t x = 0; x < inputCount; x++)
+		for (uint8_t x = 0; x < inputCount; x++)
 		{
 			code += getInput(x).code;
 
