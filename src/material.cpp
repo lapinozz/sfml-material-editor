@@ -119,6 +119,10 @@ sf::Texture defaultTextureLoader(const TextureReference& textureReference)
 		const std::string textureData = base64::from_base64(textureReference.data);
 		texture.loadFromMemory(textureData.data(), textureData.size());
 	}
+	else if (textureReference.type == TextureReference::Type::Path)
+	{
+
+	}
 
 	return texture;
 }

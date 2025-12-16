@@ -6,13 +6,17 @@ struct MapListBoxData
 	std::string editItemId;
 	std::string selectedId;
 
+	std::optional<std::string> newSelection;
+	std::optional<std::string> opened;
 	std::optional<std::string> added;
 	std::optional<std::string> removed;
 	std::optional<std::pair<std::string, std::string>> renamed;
+
+	std::string draggableId;
 };
 
 template<typename T>
-bool mapListBox(std::string name, MapListBoxData & data, T& map)
+bool mapListBox(std::string name, MapListBoxData& data, T& map)
 {
 	bool hasChange = false;
 
@@ -21,8 +25,10 @@ bool mapListBox(std::string name, MapListBoxData & data, T& map)
 	std::string& selectedId = data.selectedId;
 
 	data.added = std::nullopt;
+	data.opened = std::nullopt;
 	data.removed = std::nullopt;
 	data.renamed = std::nullopt;
+	data.newSelection = std::nullopt;
 
 	std::unordered_map<std::string, std::string> toCopyList;
 	std::unordered_set<std::string> toRemoveList;
@@ -69,7 +75,24 @@ bool mapListBox(std::string name, MapListBoxData & data, T& map)
 		if (ImGui::Selectable("##header", id == selectedId))
 		{
 			selectedId = id;
-			hasChange = true;
+			data.newSelection = id;
+		}
+
+		if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+		{
+			data.opened = id;
+		}
+
+		if (!data.draggableId.empty())
+		{
+			if (ImGui::BeginDragDropSource(ImGuiDragDropFlags{}))
+			{
+				ImGui::SetDragDropPayload(data.draggableId.c_str(), id.data(), id.size() + 1);
+
+				ImGui::Text("%s", id.c_str());
+
+				ImGui::EndDragDropSource();
+			}
 		}
 
 		bool focusText = false;
@@ -134,6 +157,7 @@ bool mapListBox(std::string name, MapListBoxData & data, T& map)
 			ImGui::ScrollToItem();
 			scrollItemId = "";
 			selectedId = id;
+			data.newSelection = id;
 		}
 
 		ImGui::PopID();
@@ -142,6 +166,11 @@ bool mapListBox(std::string name, MapListBoxData & data, T& map)
 	ImGui::EndChild();
 
 	if (toCopyList.size() > 0 || toRemoveList.size() > 0)
+	{
+		hasChange = true;
+	}
+
+	if (data.added || data.removed || data.renamed || data.newSelection || data.opened)
 	{
 		hasChange = true;
 	}
