@@ -175,15 +175,15 @@ struct ExpressionNode : Graph::Node
 				const auto uv = ImVec2(0, 0);
 
 				drawList->AddImageRounded(0,
-					HeaderMin - ImVec2(8 - halfBorderWidth - 0.2, 4 - halfBorderWidth - 0.2),
-					HeaderMax + ImVec2(8 - halfBorderWidth - 0.2, 0.2),
+					HeaderMin - ImVec2(8 - halfBorderWidth - 0.2f, 4 - halfBorderWidth - 0.2f),
+					HeaderMax + ImVec2(8 - halfBorderWidth - 0.2f, 0.2f),
 					ImVec2(0.0f, 0.0f), uv,
 					headerColor, ed::GetStyle().NodeRounding, ImDrawFlags_RoundCornersTop);
 
 
 				drawList->AddLine(
-					ImVec2(HeaderMin.x - (8 - halfBorderWidth) + 0, HeaderMax.y + 0.35),
-					ImVec2(HeaderMax.x + (8 - halfBorderWidth) - 1, HeaderMax.y + 0.35),
+					ImVec2(HeaderMin.x - (8 - halfBorderWidth) + 0, HeaderMax.y + 0.35f),
+					ImVec2(HeaderMax.x + (8 - halfBorderWidth) - 1, HeaderMax.y + 0.35f),
 					ImGui::ColorConvertFloat4ToU32(ed::GetStyle().Colors[ax::NodeEditor::StyleColor_NodeBorder]), ed::GetStyle().NodeBorderWidth);
 			}
 		}
@@ -222,19 +222,19 @@ struct ExpressionNode : Graph::Node
 
 		ImDrawList* draw_list = ImGui::GetWindowDrawList();
 		ImVec2 p = ImGui::GetCursorScreenPos();
-		int size = 5;
+		float size = 5.f;
 		auto textSize = ImGui::CalcTextSize("In");
 
 		const auto hasError = input.error.size() > 0;
 
 		if (input.link || hasError)
 		{
-			draw_list->AddCircleFilled(ImVec2(p.x + size, p.y + textSize.y / 2), size, hasError ? LinkColorError : LinkColor);
+			draw_list->AddCircleFilled(ImVec2(p.x + size, p.y + textSize.y / 2.f), size, hasError ? LinkColorError : LinkColor);
 		}
 
 		const auto color = input.type ? input.type.toColor() : input.value.type.toColor();
 
-		draw_list->AddCircle(ImVec2(p.x + size, p.y + textSize.y / 2), size, color, 0.f, 2.f);
+		draw_list->AddCircle(ImVec2(p.x + size, p.y + textSize.y / 2.f), size, color, 0, 2.f);
 		ImGui::Dummy(ImVec2(size, size));
 
 		ImGui::SameLine();
@@ -272,14 +272,14 @@ struct ExpressionNode : Graph::Node
 
 		ImGui::Text(output.name.c_str());
 		ImGui::SameLine();
-		int size = 5;
+		float size = 5.f;
 
 		ImDrawList* draw_list = ImGui::GetWindowDrawList();
 		ImVec2 p = ImGui::GetCursorScreenPos();
 		auto textSize = ImGui::CalcTextSize("In");
 		const auto color = output.linkCount ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
-		draw_list->AddCircleFilled(ImVec2(p.x + size, p.y + textSize.y / 2), size, output.type.toColor());
-		ImGui::Dummy(ImVec2(size * 2, size));
+		draw_list->AddCircleFilled(ImVec2(p.x + size, p.y + textSize.y / 2.f), size, output.type.toColor());
+		ImGui::Dummy(ImVec2(size * 2.f, size));
 	};
 
 	virtual void drawMiddle()

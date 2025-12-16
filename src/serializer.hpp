@@ -93,6 +93,18 @@ struct Serializer
 	}
 };
 
+inline void serialize(Serializer& s, json& j)
+{
+	if (s.isSaving)
+	{
+		s.j = j;
+	}
+	else
+	{
+		j = s.j;
+	}
+}
+
 inline void serialize(Serializer& s, float& f)
 {
 	if (s.isSaving)

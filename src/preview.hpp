@@ -218,11 +218,11 @@ struct Preview
 			const auto scroll = ImGui::GetIO().MouseWheel;
 			if (scroll > 0)
 			{
-				zoom *= 0.9;
+				zoom *= 0.9f;
 			}
 			else if (scroll < 0)
 			{
-				zoom *= 1.1;
+				zoom *= 1.1f;
 			}
 			
 		}
