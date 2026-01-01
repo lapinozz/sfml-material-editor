@@ -22,6 +22,8 @@
 
 #include "graph-editor.hpp"
 
+#include "imgui_node_editor_internal.h"
+
 ValueType getParameterValueType(const ParameterValue& value)
 {
 	if (auto* float1Value = std::get_if<float>(&value))
@@ -51,7 +53,6 @@ ValueType getParameterValueType(const ParameterValue& value)
 struct MaterialEditor
 {
 	sf::RenderWindow window;
-
 
 	Graph graph;
 	ArchetypeRepo archetypes;
@@ -851,7 +852,7 @@ struct MaterialEditor
 
 		std::erase_if(nodeIds, [&](auto node)
 		{
-			return dynamic_cast<OutputNode*>(graph.findNode<ExpressionNode>(node)) != nullptr;
+			return graph.findNode<OutputNode>(node) != nullptr;
 		});
 
 		auto links = graph.links;
@@ -904,10 +905,25 @@ struct MaterialEditor
 		s.serialize("nodes", nodes);
 		s.serialize("links", links);
 
-		const auto bounds = GraphUtils::getNodesBound(nodes);
-		const auto center = ed::ScreenToCanvas(ed::GetScreenSize() / 2.f);
-		const auto offset = center - bounds.getCenter();
+		sf::Vector2f boundsMin;
+		sf::Vector2f boundsMax;
+
+		for (const auto& node : nodes)
+		{
+			const auto pos = ed::GetNodePosition(node->id);
+
+			boundsMin.x = std::min(boundsMin.x, pos.x);
+			boundsMin.y = std::min(boundsMin.y, pos.y);
+
+			boundsMax.x = std::max(boundsMax.x, pos.x);
+			boundsMax.y = std::max(boundsMax.y, pos.y);
+		}
+
+		const auto viewRect = reinterpret_cast<ax::NodeEditor::Detail::EditorContext*>(ed::GetCurrentEditor())->GetViewRect();
+		const auto center = (viewRect.Min + viewRect.Max) / 2;
 		
+		const auto offset = center - (boundsMin + boundsMax) / 2.f;
+
 		ed::ClearSelection();
 		for (auto& node : nodes)
 		{
@@ -966,12 +982,14 @@ struct MaterialEditor
 
 			if (!vertexOutFound)
 			{
-				graph.AddNode(archetypes.get("out_vertex").createNode());
+				auto node = graph.AddNode(archetypes.get("out_vertex").createNode());
+				ed::SetNodePosition(node.id, ImVec2(0.f, -100.f));
 			}
 
 			if (!fragmentOutFound)
 			{
-				graph.AddNode(archetypes.get("out_fragment").createNode());
+				auto node = graph.AddNode(archetypes.get("out_fragment").createNode());
+				ed::SetNodePosition(node.id, ImVec2(0.f, 100.f));
 			}
 
 			drawMainWindow();
