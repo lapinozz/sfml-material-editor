@@ -262,7 +262,7 @@ struct CodeGenerator
 
 		for (const auto& [name, type] : shaderInputs)
 		{
-			code += std::format("uniform {} {}\n;", type.toString(), name);
+			code += std::format("uniform {} {};\n", type.toString(), name);
 		}
 
 		code += "void main()\n{\n";
