@@ -677,6 +677,11 @@ float ax::NodeEditor::GetViewZoom()
     return s_Editor->GetViewZoom();
 }
 
+ImVec2 ax::NodeEditor::GetViewSize()
+{
+    return s_Editor->GetViewRect().GetSize();
+}
+
 void ax::NodeEditor::SetViewScroll(ImVec2 scroll)
 {
     s_Editor->SetViewScroll(scroll);

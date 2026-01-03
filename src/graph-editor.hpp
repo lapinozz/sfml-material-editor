@@ -861,13 +861,13 @@ struct GraphEditor
 		if (!vertexOutFound)
 		{
 			auto node = graph.AddNode(archetypes.get("out_vertex").createNode());
-			ed::SetNodePosition(node.id, ImVec2(0.f, -100.f));
+			ed::SetNodePosition(node.id, ed::GetViewScroll() / ed::GetViewZoom() + ed::GetViewSize() * ImVec2(1.f, 0.5f) + ImVec2(-200.f, -100.f));
 		}
 
 		if (!fragmentOutFound)
 		{
 			auto node = graph.AddNode(archetypes.get("out_fragment").createNode());
-			ed::SetNodePosition(node.id, ImVec2(0.f, 100.f));
+			ed::SetNodePosition(node.id, ed::GetViewScroll() / ed::GetViewZoom() + ed::GetViewSize() * ImVec2(1.f, 0.5f) + ImVec2(-200.f, 100.f));
 		}
 	}
 };
