@@ -4,7 +4,11 @@
 
 #include "graph-editor.hpp"
 
-using TextureReferenceMap = std::unordered_map<std::string, TextureReference>;
+struct EditorTextureReference : TextureReference
+{
+	sf::Texture preview;
+};
+using TextureReferenceMap = std::unordered_map<std::string, EditorTextureReference>;
 
 ValueType getParameterValueType(const ParameterValue& value)
 {
@@ -24,7 +28,7 @@ ValueType getParameterValueType(const ParameterValue& value)
 	{
 		return Types::vec4;
 	}
-	else if (auto* textureValue = std::get_if<sf::Texture*>(&value))
+	else if (auto* textureValue = std::get_if<const sf::Texture*>(&value))
 	{
 		return makeValueType<SamplerType>();
 	}
@@ -190,7 +194,7 @@ struct MaterialTab
 					isMaterialDirty |= ImGui::InputFloat4("Default Value", floatSpan.data());
 				}
 			}
-			else if (auto* textureReference = std::get_if<sf::Texture*>(&parameter.defaultValue))
+			else if (const auto* textureReference = std::get_if<const sf::Texture*>(&parameter.defaultValue))
 			{
 				std::string& currentRef = parameterToTextureReference[selectedId];
 
@@ -275,15 +279,12 @@ struct MaterialTab
 		{
 			isMaterialDirty = false;
 
-			//materialRepo.ownedTextures.clear();
 			for (const auto& pair : parameterToTextureReference)
 			{
 				const auto it = textureReferences.find(pair.second);
 				if (it != textureReferences.end())
 				{
-					auto texture = std::make_unique<sf::Texture>(defaultTextureLoader(it->second));
-					materialInstance->setValue(pair.first, texture.get());
-					texture.release();
+					materialInstance->setValue(pair.first, &it->second.preview);
 				}
 			}
 

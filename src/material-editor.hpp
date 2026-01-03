@@ -31,11 +31,8 @@ struct MaterialEditor
 	ArchetypeRepo archetypes;
 	GraphContext graphContext;
 
-	bool isMaterialDirty{};
-
 	MaterialRepo materialRepo;
 
-	//std::unordered_map<std::string, int> materialMap;
 	std::unordered_map<std::string, MaterialTab> materialTabs;	
 	TextureReferenceMap textureReferences;
 
@@ -162,6 +159,11 @@ struct MaterialEditor
 		s.serialize("materials", materialTabs);
 		s.serialize("openTabs", openTabs);
 		s.serialize("textureReferences", textureReferences);
+
+		if (!s.isSaving)
+		{
+			updateTextures();
+		}
 	}
 
 	void processEvents()
@@ -257,8 +259,6 @@ struct MaterialEditor
 	{
 		if (mapListBox("Materials", materialsListBox, materialTabs))
 		{
-			isMaterialDirty = true;
-
 			if (materialsListBox.removed)
 			{
 				std::erase(openTabs, *materialsListBox.removed);
@@ -291,10 +291,32 @@ struct MaterialEditor
 		}
 	}
 
+	void updateTexture(const std::string& id)
+	{
+		auto& textureReference = textureReferences[id];
+		textureReference.preview = {};
+
+		if (textureReference.type == TextureReference::Type::Path)
+		{
+			textureReference.preview.loadFromFile(textureReference.data);
+		}
+		else if (textureReference.type == TextureReference::Type::Embedded)
+		{
+			const std::string textureData = base64::from_base64(textureReference.data);
+			textureReference.preview.loadFromMemory(textureData.data(), textureData.size());
+		}
+	}
+
+	void updateTextures()
+	{
+		for (auto& [id, _] : textureReferences)
+		{
+			updateTexture(id);
+		}
+	}
+
 	void drawTexturesEditor()
 	{
-		static std::optional<sf::Texture> previewTexture;
-
 		bool reloadTexture{};
 
 		if (mapListBox("Parameters", texturesListBox, textureReferences))
@@ -380,32 +402,19 @@ struct MaterialEditor
 
 			if (reloadTexture)
 			{
-				isMaterialDirty = true;
-				previewTexture = std::nullopt;
-
-				if (textureReference.type == TextureReference::Type::Path)
-				{
-					previewTexture.emplace();
-					previewTexture->loadFromFile(textureReference.data);
-				}
-				else if (textureReference.type == TextureReference::Type::Embedded)
-				{
-					previewTexture.emplace();
-
-					const std::string textureData = base64::from_base64(textureReference.data);
-					previewTexture->loadFromMemory(textureData.data(), textureData.size());
-				}
+				updateTexture(selectedId);
 			}
 
-			if (previewTexture && previewTexture->getSize().x && previewTexture->getSize().y)
+			auto& previewTexture = textureReference.preview;
+			if (previewTexture.getSize().x && previewTexture.getSize().y)
 			{
 				ImGuiStyle& style = ImGui::GetStyle();
 				float avail = ImGui::GetContentRegionAvail().x - style.FramePadding.x * 2.0f - 100.f;
-				const auto scale = std::min({ avail / previewTexture->getSize().x, avail / previewTexture->getSize().y, 1.f});
+				const auto scale = std::min({ avail / previewTexture.getSize().x, avail / previewTexture.getSize().y, 1.f});
 
-				sf::Sprite sprite(*previewTexture);
+				sf::Sprite sprite(previewTexture);
 				sprite.scale({ scale, scale });
-				ImGui::SetCursorPosX((avail - previewTexture->getSize().x * scale) / 2);
+				ImGui::SetCursorPosX((avail - previewTexture.getSize().x * scale) / 2);
 
 				ImGui::Image(sprite);
 			}
