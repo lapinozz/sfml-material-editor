@@ -39,7 +39,7 @@ void MaterialTemplate::setParameterDefault(const std::string& name, ParameterVal
 
 void Material::setUniform(const std::string& name, ParameterValue param)
 {
-	if (sf::Texture** texture = std::get_if<sf::Texture*>(&param))
+	if (const sf::Texture** texture = std::get_if<const sf::Texture*>(&param))
 	{
 		if (*texture)
 		{

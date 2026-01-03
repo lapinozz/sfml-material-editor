@@ -13,7 +13,7 @@
 #include "sfml-serialization.hpp"
 
 using Vector4f = sf::Glsl::Vec4; //std::array<float, 4>;
-using ParameterValue = std::variant<float, sf::Vector2f, sf::Vector3f, Vector4f, sf::Texture*>;
+using ParameterValue = std::variant<float, sf::Vector2f, sf::Vector3f, Vector4f, const sf::Texture*>;
 
 enum class ParamterType
 {
@@ -115,13 +115,13 @@ struct TextureReference
 using TextureReferences = std::vector<TextureReference>;
 
 sf::Texture defaultTextureLoader(const TextureReference& textureReference);
-using TextureLoadingCallback = std::function<sf::Texture* (const TextureReference&)>;
+using TextureLoadingCallback = std::function<const sf::Texture* (const TextureReference&)>;
 
 class MaterialRepo
 {
 public:
 	std::vector<sf::Texture> ownedTextures;
-	std::vector<sf::Texture*> referencedTextures;
+	std::vector<const sf::Texture*> referencedTextures;
 	std::unordered_map<std::string, MaterialTemplate> templates;
 
 	std::unique_ptr<Material> makeInstance(const std::string& templateId)
@@ -145,7 +145,7 @@ inline void serialize(Serializer& s, TextureReference& tr)
 }
 
 // dirty hack
-inline void serialize(Serializer& s, sf::Texture* ptr)
+inline void serialize(Serializer& s, const sf::Texture* ptr)
 {
 	static_assert(sizeof(ptr) == sizeof(std::uint64_t));
 	s.serialize((std::uint64_t&)ptr);
