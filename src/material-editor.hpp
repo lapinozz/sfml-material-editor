@@ -305,6 +305,11 @@ struct MaterialEditor
 			const std::string textureData = base64::from_base64(textureReference.data);
 			textureReference.preview.loadFromMemory(textureData.data(), textureData.size());
 		}
+
+		for (auto& [id, tab] : materialTabs)
+		{
+			tab.isMaterialDirty = true;
+		}
 	}
 
 	void updateTextures()

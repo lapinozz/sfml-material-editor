@@ -122,8 +122,22 @@ struct MaterialTab
 			}
 			else if (parametersListBox.renamed)
 			{
-				parameterToTextureReference[parametersListBox.renamed->second] = parameterToTextureReference[parametersListBox.renamed->first];
-				parameterToTextureReference.erase(parametersListBox.renamed->first);
+				const auto& oldName = parametersListBox.renamed->first;
+				const auto& newName = parametersListBox.renamed->second;
+
+				for (auto& node : graph.nodes)
+				{
+					if (auto* parameterNode = dynamic_cast<ParameterNode*>(node.get()))
+					{
+						if (parameterNode->parameterId == oldName)
+						{
+							parameterNode->parameterId = newName;
+						}
+					}
+				}
+
+				parameterToTextureReference[newName] = parameterToTextureReference[oldName];
+				parameterToTextureReference.erase(oldName);
 			}
 		}
 
