@@ -20,84 +20,44 @@
 #include "nfd.h"
 #include "base64.hpp"
 
-#include "graph-editor.hpp"
+#include "material-tab.hpp"
 
 #include "imgui_node_editor_internal.h"
-
-ValueType getParameterValueType(const ParameterValue& value)
-{
-	if (auto* float1Value = std::get_if<float>(&value))
-	{
-		return Types::scalar;
-	}
-	else if (auto* float2Value = std::get_if<sf::Vector2f>(&value))
-	{
-		return Types::vec2;
-	}
-	else if (auto* float3Value = std::get_if<sf::Vector3f>(&value))
-	{
-		return Types::vec3;
-	}
-	else if (auto* float4Value = std::get_if<Vector4f>(&value))
-	{
-		return Types::vec4;
-	}
-	else if (auto* textureValue = std::get_if<sf::Texture*>(&value))
-	{
-		return makeValueType<SamplerType>();
-	}
-
-	assert(false);
-}
 
 struct MaterialEditor
 {
 	sf::RenderWindow window;
 
-	Graph graph;
 	ArchetypeRepo archetypes;
 	GraphContext graphContext;
-
-	GraphEditor graphEditor{ graph, archetypes, graphContext};
 
 	bool isMaterialDirty{};
 
 	MaterialRepo materialRepo;
-	MaterialTemplate materialTemplate;
-	Material::Ptr materialInstance;
 
-	//TextureReferences textureReferences;
-	std::unordered_map<std::string, std::string> parameterToTextureReference;
-	std::unordered_map<std::string, TextureReference> textureReferences;
-
-	std::unordered_map<std::string, nlohmann::json> materialsData;
+	//std::unordered_map<std::string, int> materialMap;
+	std::unordered_map<std::string, MaterialTab> materialTabs;	
+	TextureReferenceMap textureReferences;
 
 	std::vector<std::string> openTabs;
 	std::string selectedMaterialTab;
 
 	MapListBoxData materialsListBox;
-	MapListBoxData parametersListBox;
 	MapListBoxData texturesListBox;
 
 	TextEditor vertexEditor;
 	TextEditor fragmentEditor;
-
-	ed::EditorContext* edContext{};
 
 	sf::Clock clock;
 	float runningTime{};
 
 	Preview preview;
 
-	std::string vertexCode;
-	std::string fragmentCode;
-
 	MaterialEditor() :
 		window{ sf::VideoMode{ { 1800u, 900u } }, "CMake SFML Project", sf::Style::Default, sf::State::Windowed }
 	{
 		window.setVerticalSyncEnabled(true);
-
-		materialInstance = materialTemplate.makeInstance();
+		window.setFramerateLimit(30);
 
 		initImgui();
 		initArchetypes();
@@ -108,11 +68,6 @@ struct MaterialEditor
 		(void)ImGui::SFML::Init(window);
 
 		ImGui::StyleColorsDark();
-
-		ed::Config config;
-		config.SettingsFile = "Simple.json";
-		config.EnableSmoothZoom = true;
-		edContext = ed::CreateEditor(&config);
 
 		const float baseFontSize = 16.f;
 		const float faFontSize = baseFontSize * 2.0f / 3.0f;
@@ -164,73 +119,49 @@ struct MaterialEditor
 		AppendNode::registerArchetypes(archetypes);
 		ParameterNode::registerArchetypes(archetypes);
 		SampleTextureNode::registerArchetypes(archetypes);
-	}
-
-	void saveTab(const std::string& Id)
-	{
-		auto& j = materialsData[Id];
-		Serializer s(true, j);
 
 		NodeSerializer::repo = &archetypes;
-
-		s.serialize("nodes", graph.nodes);
-		s.serialize("links", graph.links);
-		s.serialize("parameters", materialTemplate.parameters);
-	}
-
-	void loadTab(const std::string& Id)
-	{
-		auto& j = materialsData[Id];
-		Serializer s(false, j);
-
-		NodeSerializer::repo = &archetypes;
-
-		graph.nodes.clear();
-		graph.links.clear();
-
-		s.serialize("nodes", graph.nodes);
-		s.serialize("links", graph.links);
-		s.serialize("parameters", materialTemplate.parameters);
-
-		ShortId maxId{};
-		for (const auto& node : graph.nodes)
-		{
-			if (!node)
-			{
-				continue;
-			}
-
-			maxId = std::max(maxId, node->id.Get());
-		}
-		graph.idPool.reset(maxId + 1);
-
-		isMaterialDirty = true;
 	}
 
 	void onMaterialTabChange(const std::string& newId)
 	{
 		if (selectedMaterialTab.size() > 0)
 		{
-			saveTab(selectedMaterialTab);
+			
+			//saveTab(selectedMaterialTab);
 		}
 
 		selectedMaterialTab = newId;
 
 		if (selectedMaterialTab.size() > 0)
 		{
-			loadTab(selectedMaterialTab);
+			//loadTab(selectedMaterialTab);
 		}
 	}
 
-	void onMaterialTabClose(const std::string& id)
+	MaterialTab* getCurrentTab()
 	{
-		std::erase(openTabs, id);
+		if (selectedMaterialTab.empty())
+		{
+			return nullptr;
+		}
+
+		const auto it = materialTabs.find(selectedMaterialTab);
+		if (it == materialTabs.end())
+		{
+			return nullptr;
+		}
+
+		return &it->second;
 	}
 
-	void addMaterialTab(const std::string& id)
+	void serialize(Serializer& s)
 	{
-		std::erase(openTabs, id);
-		openTabs.push_back(id);
+		NodeSerializer::repo = &archetypes;
+
+		s.serialize("materials", materialTabs);
+		s.serialize("openTabs", openTabs);
+		s.serialize("textureReferences", textureReferences);
 	}
 
 	void processEvents()
@@ -264,29 +195,19 @@ struct MaterialEditor
 
 					Serializer s(false, j);
 
-					NodeSerializer::repo = &archetypes;
-
-					s.serialize("parameterToTextureReference", parameterToTextureReference);
-					s.serialize("textureReferences", textureReferences);
-					s.serialize("materials", materialsData);
-					s.serialize("openTabs", openTabs);
+					serialize(s);
 
 					selectedMaterialTab = "";
 
 				}
 				else if (e->code == sf::Keyboard::Key::S)
 				{
-					saveTab(selectedMaterialTab);
+					//saveTab(selectedMaterialTab);
 
 					json j;
 					Serializer s(true, j);
 
-					NodeSerializer::repo = &archetypes;
-
-					s.serialize("parameterToTextureReference", parameterToTextureReference);
-					s.serialize("textureReferences", textureReferences);
-					s.serialize("materials", materialsData);
-					s.serialize("openTabs", openTabs);
+					serialize(s);
 
 					std::ofstream of("./test.json");
 					of << j;
@@ -294,21 +215,27 @@ struct MaterialEditor
 				}
 				else if (e->code == sf::Keyboard::Key::Y)
 				{
-					UEGraphAdapter::CurrentGraph = &graph;
+					//UEGraphAdapter::CurrentGraph = &graph;
 
 					//FFormatter formatter;
 					//formatter.Format();
 
-					Formatter formatter{ &graph };
-					formatter.format();
+					//Formatter formatter{ &graph };
+					//formatter.format();
 				}
 				else if (e->code == sf::Keyboard::Key::C && e->control)
 				{
-					copyToClipboard();
+					if (auto* tab = getCurrentTab())
+					{
+						sf::Clipboard::setString(tab->graphEditor.copySelectedToString());
+					}
 				}
 				else if (e->code == sf::Keyboard::Key::V && e->control)
 				{
-					pasteFromClipboard();
+					if (auto* tab = getCurrentTab())
+					{
+						tab->graphEditor.pasteFromString(sf::Clipboard::getString().toAnsiString());
+					}
 				}
 			}
 		}
@@ -316,92 +243,19 @@ struct MaterialEditor
 
 	void drawNodeEditor()
 	{
-		CodeGenerator vertexGen(graph, CodeGenerator::Type::Vertex);
-		CodeGenerator fragmentGen(graph, CodeGenerator::Type::Fragment);
-
-		graphContext.parameterTypes.clear();
-		for (const auto& [id, parameter]: materialTemplate.parameters)
+		if (auto* tab = getCurrentTab())
 		{
-			graphContext.parameterTypes[id] = getParameterValueType(parameter.defaultValue);
+			tab->update(textureReferences);
+			tab->draw();
+
+			vertexEditor.SetText(tab->vertexCode);
+			fragmentEditor.SetText(tab->fragmentCode);
 		}
-
-		for (auto& node : graph.nodes)
-		{
-			if (!node)
-			{
-				continue;
-			}
-
-			static_cast<ExpressionNode&>(*node).update(&graphContext);
-		}
-
-		for (auto& link : graph.links)
-		{
-			graph.getNode<ExpressionNode>(link.to().nodeId()).inputs[link.to().index()].link = link;
-			graph.getNode<ExpressionNode>(link.from().nodeId()).outputs[link.from().index()].linkCount++;
-		}
-
-		for (auto& node : graph.nodes)
-		{
-			if (!node)
-			{
-				continue;
-			}
-
-			if (auto* n = dynamic_cast<OutputNode*>(node.get()))
-			{
-				if (n->type == CodeGenerator::Type::Vertex)
-				{
-					vertexGen.evaluate(*n);
-				}
-				else if (n->type == CodeGenerator::Type::Fragment)
-				{
-					fragmentGen.evaluate(*n);
-				}
-			}
-		}
-
-		auto newVertexCode = vertexGen.finalize();
-		auto newFragmentCode = fragmentGen.finalize();
-		if (vertexCode != newVertexCode || fragmentCode != newFragmentCode)
-		{
-			vertexCode = std::move(newVertexCode);
-			fragmentCode = std::move(newFragmentCode);
-
-			vertexEditor.SetText(vertexCode);
-			fragmentEditor.SetText(fragmentCode);
-
-			isMaterialDirty = true;
-		}
-
-		if (isMaterialDirty)
-		{
-			isMaterialDirty = false;
-
-			materialRepo.ownedTextures.clear();
-			for (const auto& pair : parameterToTextureReference)
-			{
-				auto it = textureReferences.find(pair.second);
-				if (it != textureReferences.end())
-				{
-					auto texture = std::make_unique<sf::Texture>(defaultTextureLoader(it->second));
-					materialInstance->setValue(pair.first, texture.get());
-					texture.release();
-				}
-			}
-
-			materialTemplate.setSource(vertexCode, fragmentCode);
-		}
-
-		materialInstance->setValue("time", runningTime);
-
-		graphEditor.draw();
 	}
 
 	void drawMaterialList()
 	{
-		auto& parameters = materialTemplate.parameters;
-		if (mapListBox("Materials", materialsListBox, materialsData))
+		if (mapListBox("Materials", materialsListBox, materialTabs))
 		{
 			isMaterialDirty = true;
 
@@ -431,125 +285,9 @@ struct MaterialEditor
 
 		const auto& selectedId = materialsListBox.selectedId;
 
-		if (materialsData.contains(selectedId))
+		if (materialTabs.contains(selectedId))
 		{
 
-		}
-	}
-
-	void drawParameterEditor()
-	{
-		parametersListBox.draggableId = "ParameterDrag";
-
-		auto& parameters = materialTemplate.parameters;
-		if (mapListBox("Parameters", parametersListBox, parameters))
-		{
-			isMaterialDirty = true;
-
-			if (parametersListBox.removed)
-			{
-				parameterToTextureReference.erase(*parametersListBox.removed);
-			}
-			else if (parametersListBox.renamed)
-			{
-				parameterToTextureReference[parametersListBox.renamed->second] = parameterToTextureReference[parametersListBox.renamed->first];
-				parameterToTextureReference.erase(parametersListBox.renamed->first);
-			}
-		}
-
-		const auto& selectedId = parametersListBox.selectedId;
-
-		if (parameters.contains(selectedId))
-		{
-			auto& parameter = parameters[selectedId];
-
-			const auto getFloatSpan = [](auto& variant) -> std::span<float>
-			{
-				if (auto* float1Value = std::get_if<float>(&variant))
-				{
-					return { float1Value, 1 };
-				}
-				else if (auto* float2Value = std::get_if<sf::Vector2f>(&variant))
-				{
-					return { &float2Value->x, 2 };
-				}
-				else if (auto* float3Value = std::get_if<sf::Vector3f>(&variant))
-				{
-					return { &float3Value->x, 3 };
-				}
-				else if (auto* float4Value = std::get_if<Vector4f>(&variant))
-				{
-					return { &float4Value->x, 4 };
-				}
-
-				return {};
-			};
-
-			const auto itemLabels = "Float\0Vec2\0Vec3\0Vec4\0Texture\0";
-			int typeIndex = parameter.defaultValue.index();
-			if (ImGui::Combo("Type", &typeIndex, itemLabels))
-			{
-				Vector4f oldValues{};
-				if (auto floatSpan = getFloatSpan(parameter.defaultValue); floatSpan.size() > 0)
-				{
-					std::copy(floatSpan.begin(), floatSpan.end(), &oldValues.x);
-				}
-
-				variantEmplace(parameter.defaultValue, typeIndex);
-
-				if (auto floatSpan = getFloatSpan(parameter.defaultValue); floatSpan.size() > 0)
-				{
-					std::copy(&oldValues.x, &oldValues.x + floatSpan.size(),  floatSpan.data());
-				}
-
-				isMaterialDirty = true;
-			}
-
-			if (auto floatSpan = getFloatSpan(parameter.defaultValue); floatSpan.size() > 0)
-			{
-				if (floatSpan.size() == 1)
-				{
-					isMaterialDirty |= ImGui::InputFloat("Default Value", floatSpan.data());
-				}
-				else if (floatSpan.size() == 2)
-				{
-					isMaterialDirty |= ImGui::InputFloat2("Default Value", floatSpan.data());
-				}
-				else if (floatSpan.size() == 3)
-				{
-					isMaterialDirty |= ImGui::InputFloat3("Default Value", floatSpan.data());
-				}
-				else if (floatSpan.size() == 4)
-				{
-					isMaterialDirty |= ImGui::InputFloat4("Default Value", floatSpan.data());
-				}
-			}
-			else if (auto* textureReference = std::get_if<sf::Texture*>(&parameter.defaultValue))
-			{				
-				std::string& currentRef = parameterToTextureReference[selectedId];
-				
-				if (ImGui::BeginCombo("Texture", currentRef.c_str()))
-				{
-					for (const auto& pair : textureReferences)
-					{
-						const auto& textureReference = pair.second;
-						const auto& textureId = pair.first;
-						const bool is_selected = textureId == currentRef;
-						if (ImGui::Selectable(textureId.c_str(), is_selected))
-						{
-							currentRef = textureId;
-
-							isMaterialDirty = true;
-						}
-
-						if (is_selected)
-						{
-							ImGui::SetItemDefaultFocus();
-						}
-					}
-					ImGui::EndCombo();
-				}
-			}
 		}
 	}
 
@@ -718,17 +456,20 @@ struct MaterialEditor
 
 				ImGui::EndTabItem();
 			}
-			if (ImGui::BeginTabItem("Params"))
-			{
-				drawParameterEditor();
-
-				ImGui::EndTabItem();
-			}
 			if (ImGui::BeginTabItem("Textures"))
 			{
 				drawTexturesEditor();
 
 				ImGui::EndTabItem();
+			}
+			if (auto* tab = getCurrentTab())
+			{
+				if (ImGui::BeginTabItem("Params"))
+				{
+					tab->drawParameterEditor(textureReferences);
+
+					ImGui::EndTabItem();
+				}
 			}
 
 			ImGui::EndTabBar();
@@ -740,17 +481,6 @@ struct MaterialEditor
 		if (ImGui::BeginTabBar("middle_tabs", ImGuiTabBarFlags_AutoSelectNewTabs | ImGuiTabBarFlags_FittingPolicyScroll | ImGuiTabBarFlags_Reorderable))
 		{
 			ImGuiTabBar* tab_bar = ImGui::GetCurrentTabBar();
-
-			if (openTabs.empty())
-			{
-				openTabs.push_back("tab 1");
-				openTabs.push_back("tab 2");
-				openTabs.push_back("tab 3");
-			}
-
-			auto newOpenTabs = openTabs;
-			newOpenTabs;
-
 
 			for (const auto& tabId : openTabs)
 			{
@@ -791,9 +521,18 @@ struct MaterialEditor
 				openTabs.push_back(name);
 			}
 
+			if (!std::ranges::contains(openTabs, selectedMaterialTab))
+			{
+				selectedMaterialTab = {};
+			}
+
+			if (selectedMaterialTab.empty() && !openTabs.empty())
+			{
+				selectedMaterialTab = openTabs[0];
+			}
+
 			ImGui::EndTabBar();
 		}
-
 
 		drawNodeEditor();
 
@@ -802,34 +541,37 @@ struct MaterialEditor
 		ImGui::BeginChild("right_side");
 		if (ImGui::BeginTabBar("right_tabs", tab_bar_flags))
 		{
-			if (ImGui::BeginTabItem("Preview"))
+			if (auto* tab = getCurrentTab())
 			{
-				preview.update(materialInstance->getShader());
-
-				ImGui::EndTabItem();
-			}
-			if (ImGui::BeginTabItem("Code"))
-			{
-				if (ImGui::BeginTabBar("code_tabs", tab_bar_flags))
+				if (ImGui::BeginTabItem("Preview"))
 				{
-					if (ImGui::BeginTabItem("Vertex"))
-					{
-						vertexEditor.Render("vertexEditor");
+					preview.update(tab->materialInstance->getShader());
 
-						ImGui::EndTabItem();
-					}
-
-					if (ImGui::BeginTabItem("Fragment"))
-					{
-						fragmentEditor.Render("fragmentEditor");
-
-						ImGui::EndTabItem();
-					}
-
-					ImGui::EndTabBar();
+					ImGui::EndTabItem();
 				}
+				if (ImGui::BeginTabItem("Code"))
+				{
+					if (ImGui::BeginTabBar("code_tabs", tab_bar_flags))
+					{
+						if (ImGui::BeginTabItem("Vertex"))
+						{
+							vertexEditor.Render("vertexEditor");
 
-				ImGui::EndTabItem();
+							ImGui::EndTabItem();
+						}
+
+						if (ImGui::BeginTabItem("Fragment"))
+						{
+							fragmentEditor.Render("fragmentEditor");
+
+							ImGui::EndTabItem();
+						}
+
+						ImGui::EndTabBar();
+					}
+
+					ImGui::EndTabItem();
+				}
 			}
 
 			ImGui::EndTabBar();
@@ -842,155 +584,15 @@ struct MaterialEditor
 		ImGui::PopStyleVar(1);
 	}
 
-	void copyToClipboard()
-	{
-		auto nodeIds = GraphUtils::getSelectedNodes();
-		if (nodeIds.size() == 0)
-		{
-			return;
-		}
-
-		std::erase_if(nodeIds, [&](auto node)
-		{
-			return graph.findNode<OutputNode>(node) != nullptr;
-		});
-
-		auto links = graph.links;
-		std::erase_if(links, [&](auto link)
-		{
-			return !nodeIds.contains(link.from().nodeId()) || !nodeIds.contains(link.to().nodeId());
-		});
-
-		auto nodesToSave = nodeIds 
-			| std::views::transform([&](auto node) {return graph.findNode<ExpressionNode>(node); })
-			| std::ranges::to<std::vector>();
-
-		json j;
-		Serializer s(true, j);
-
-		NodeSerializer::repo = &archetypes;
-
-		s.serialize("nodes", nodesToSave);
-		s.serialize("links", links);
-
-		j["type"] = "MLS-subgraph";
-
-		std::string result = j.dump(4);
-		sf::Clipboard::setString(result);
-	}
-
-	void pasteFromClipboard()
-	{	
-		json j = json::parse(sf::Clipboard::getString().toAnsiString());
-		if (j["type"] != "MLS-subgraph")
-		{
-			return;
-		}
-
-		std::unordered_map<NodeId, NodeId> newIdMap;
-		for (auto& node : j["nodes"])
-		{
-			const auto oldId = node["id"].template get<NodeId::InnerType>();
-			const auto newId = graph.idPool.take();
-			newIdMap.emplace(oldId, newId);
-			node["id"] = newId;
-		}
-
-		Serializer s(false, j);
-		NodeSerializer::repo = &archetypes;
-
-		std::vector<LinkId> links;
-		std::vector<Graph::Node::Ptr> nodes;
-
-		s.serialize("nodes", nodes);
-		s.serialize("links", links);
-
-		sf::Vector2f boundsMin;
-		sf::Vector2f boundsMax;
-
-		for (const auto& node : nodes)
-		{
-			const auto pos = ed::GetNodePosition(node->id);
-
-			boundsMin.x = std::min(boundsMin.x, pos.x);
-			boundsMin.y = std::min(boundsMin.y, pos.y);
-
-			boundsMax.x = std::max(boundsMax.x, pos.x);
-			boundsMax.y = std::max(boundsMax.y, pos.y);
-		}
-
-		const auto viewRect = reinterpret_cast<ax::NodeEditor::Detail::EditorContext*>(ed::GetCurrentEditor())->GetViewRect();
-		const auto center = (viewRect.Min + viewRect.Max) / 2;
-		
-		const auto offset = center - (boundsMin + boundsMax) / 2.f;
-
-		ed::ClearSelection();
-		for (auto& node : nodes)
-		{
-			const auto id = node->id;
-			ed::SelectNode(id, true);
-			ed::SetNodePosition(id, ed::GetNodePosition(id) + offset);
-			graph.AddNode(std::move(node));
-		}
-
-		for (auto& link : links)
-		{
-			PinId from = link.from();
-			PinId to = link.to();
-
-			to = PinId::makeInput(newIdMap.at(to.nodeId()), to.index());
-			from = PinId::makeOutput(newIdMap.at(from.nodeId()), from.index());
-
-			graph.addLink(from, to);
-		}
-	}
-
 	void update()
 	{
 		while (window.isOpen())
 		{
-			ed::SetCurrentEditor(edContext);
-
 			processEvents();
 
 			const auto deltaTiem = clock.restart();
 			runningTime += deltaTiem.asSeconds();
 			ImGui::SFML::Update(window, deltaTiem);
-
-			bool vertexOutFound = false;
-			bool fragmentOutFound = false;
-
-			for (auto& node : graph.nodes)
-			{
-				if (!node)
-				{
-					continue;
-				}
-
-				if (auto* n = dynamic_cast<OutputNode*>(node.get()))
-				{
-					if (n->type == CodeGenerator::Type::Vertex)
-					{
-						vertexOutFound = true;
-					}
-					else if (n->type == CodeGenerator::Type::Fragment)
-					{
-						fragmentOutFound = true;
-					}
-				}
-			}
-
-			if (!vertexOutFound)
-			{
-				auto node = graph.AddNode(archetypes.get("out_vertex").createNode());
-				ed::SetNodePosition(node.id, ImVec2(0.f, -100.f));
-			}
-
-			if (!fragmentOutFound)
-			{
-				auto node = graph.AddNode(archetypes.get("out_fragment").createNode());
-				ed::SetNodePosition(node.id, ImVec2(0.f, 100.f));
-			}
 
 			drawMainWindow();
 

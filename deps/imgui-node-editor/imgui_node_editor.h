@@ -409,6 +409,12 @@ IMGUI_NODE_EDITOR_API void EndShortcut();
 
 IMGUI_NODE_EDITOR_API float GetCurrentZoom();
 
+IMGUI_NODE_EDITOR_API ImVec2 GetViewScroll();
+IMGUI_NODE_EDITOR_API float GetViewZoom();
+
+IMGUI_NODE_EDITOR_API void SetViewScroll(ImVec2 scroll);
+IMGUI_NODE_EDITOR_API void SetViewZoom(float zoom);
+
 IMGUI_NODE_EDITOR_API NodeId GetHoveredNode();
 IMGUI_NODE_EDITOR_API PinId GetHoveredPin();
 IMGUI_NODE_EDITOR_API LinkId GetHoveredLink();

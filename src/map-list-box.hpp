@@ -16,7 +16,7 @@ struct MapListBoxData
 };
 
 template<typename T>
-bool mapListBox(std::string name, MapListBoxData& data, T& map)
+bool mapListBox(std::string name, MapListBoxData& data, std::unordered_map<std::string, T>& map)
 {
 	bool hasChange = false;
 
@@ -57,7 +57,7 @@ bool mapListBox(std::string name, MapListBoxData& data, T& map)
 		if (ImGui::Button("Add New"))
 		{
 			const auto newName = findNewName("NewItem");
-			map[newName] = {};
+			map.emplace(newName, T{});
 			scrollItemId = newName;
 			editItemId = newName;
 			hasChange = true;

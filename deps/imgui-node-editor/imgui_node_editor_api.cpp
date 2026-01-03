@@ -667,6 +667,26 @@ float ax::NodeEditor::GetCurrentZoom()
     return s_Editor->GetView().InvScale;
 }
 
+ImVec2 ax::NodeEditor::GetViewScroll()
+{
+    return s_Editor->GetViewScroll();
+}
+
+float ax::NodeEditor::GetViewZoom()
+{
+    return s_Editor->GetViewZoom();
+}
+
+void ax::NodeEditor::SetViewScroll(ImVec2 scroll)
+{
+    s_Editor->SetViewScroll(scroll);
+}
+
+void ax::NodeEditor::SetViewZoom(float zoom)
+{
+    s_Editor->SetViewZoom(zoom);
+}
+
 ax::NodeEditor::NodeId ax::NodeEditor::GetHoveredNode()
 {
     return s_Editor->GetHoveredNode();

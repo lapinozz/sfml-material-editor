@@ -1442,8 +1442,14 @@ struct EditorContext
     void NavigateTo(const ImRect& bounds, bool zoomIn = false, float duration = -1)
     {
         auto zoomMode = zoomIn ? NavigateAction::ZoomMode::WithMargin : NavigateAction::ZoomMode::None;
-        m_NavigateAction.NavigateTo(bounds, zoomMode, duration);
+        m_NavigateAction.NavigateTo(bounds, zoomMode, duration); 
     }
+
+    ImVec2 GetViewScroll();
+    float GetViewZoom();
+
+    void SetViewScroll(ImVec2 scroll);
+    void SetViewZoom(float zoom);
 
     void RegisterAnimation(Animation* animation);
     void UnregisterAnimation(Animation* animation);
