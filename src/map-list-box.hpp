@@ -87,7 +87,7 @@ bool mapListBox(std::string name, MapListBoxData& data, std::unordered_map<std::
 		{
 			if (ImGui::BeginDragDropSource(ImGuiDragDropFlags{}))
 			{
-				ImGui::SetDragDropPayload(data.draggableId.c_str(), id.data(), id.size() + 1);
+				ImGui::SetDragDropPayload(data.draggableId.c_str(), id.data(), id.size());
 
 				ImGui::Text("%s", id.c_str());
 
