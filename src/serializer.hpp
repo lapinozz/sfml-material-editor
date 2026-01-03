@@ -58,7 +58,7 @@ struct Serializer
 	template<typename R, typename W>
 	void serializeReadWrite(std::string_view name, R&& r, W&& w)
 	{
-		serialize(name).serialize(r, w);
+		at(name).serialize(r, w);
 	}
 
 	template<typename R, typename W>
@@ -72,6 +72,12 @@ struct Serializer
 		{
 			w(*this);
 		}
+	}
+
+	template<typename T, typename R, typename W>
+	void serializeValue(std::string_view name, R&& r, W&& w)
+	{
+		at(name).serializeValue<T>(r, w);
 	}
 
 	template<typename T, typename R, typename W>

@@ -2177,16 +2177,17 @@ ed::Link* ed::EditorContext::GetLink(LinkId id)
 
 void ed::EditorContext::LoadSettings()
 {
-    ed::Settings::Parse(m_Config.Load(), m_Settings);
-
-    if (ImRect_IsEmpty(m_Settings.m_VisibleRect))
+    if (ed::Settings::Parse(m_Config.Load(), m_Settings))
     {
-        m_NavigateAction.m_Scroll = m_Settings.m_ViewScroll;
-        m_NavigateAction.m_Zoom   = m_Settings.m_ViewZoom;
-    }
-    else
-    {
-        m_NavigateAction.NavigateTo(m_Settings.m_VisibleRect, NavigateAction::ZoomMode::Exact, 0.0f);
+        if (ImRect_IsEmpty(m_Settings.m_VisibleRect))
+        {
+            m_NavigateAction.m_Scroll = m_Settings.m_ViewScroll;
+            m_NavigateAction.m_Zoom = m_Settings.m_ViewZoom;
+        }
+        else
+        {
+            m_NavigateAction.NavigateTo(m_Settings.m_VisibleRect, NavigateAction::ZoomMode::Exact, 0.0f);
+        }
     }
 }
 
@@ -2271,6 +2272,26 @@ int ed::EditorContext::GetNodeIds(NodeId* nodes, int size) const
     }
 
     return result;
+}
+
+ImVec2 ed::EditorContext::GetViewScroll()
+{
+    return m_NavigateAction.m_Scroll;
+}
+
+float ed::EditorContext::GetViewZoom()
+{
+    return m_NavigateAction.m_Zoom;
+}
+
+void ed::EditorContext::SetViewScroll(ImVec2 scroll)
+{
+    m_NavigateAction.m_Scroll = scroll;
+}
+
+void ed::EditorContext::SetViewZoom(float zoom)
+{
+    m_NavigateAction.m_Zoom = zoom;
 }
 
 void ed::EditorContext::RegisterAnimation(Animation* animation)

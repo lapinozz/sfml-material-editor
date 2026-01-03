@@ -3,8 +3,9 @@
 struct GraphEditor
 {
 	Graph& graph;
-	ArchetypeRepo& archetypes;
 	GraphContext& graphContext;
+
+	ArchetypeRepo& archetypes;
 
 	std::vector<PinId> newNodeTargetPins;
 	bool newNodeFilterType = true;
@@ -567,6 +568,139 @@ struct GraphEditor
 		ed::Resume();
 	}
 
+	void serialize(Serializer& s)
+	{
+		if (!s.isSaving)
+		{
+			graph.nodes.clear();
+			graph.links.clear();
+		}
+
+		NodeSerializer::repo = &archetypes;
+		s.serialize("nodes", graph.nodes);
+		s.serialize("links", graph.links);
+
+		s.serializeValue<float>("zoom", &ed::GetViewZoom, &ed::SetViewZoom);
+		s.serializeValue<ImVec2>("scroll", &ed::GetViewScroll, &ed::SetViewScroll);
+
+		if (!s.isSaving)
+		{
+			ShortId maxId{};
+			for (const auto& node : graph.nodes)
+			{
+				if (!node)
+				{
+					continue;
+				}
+
+				maxId = std::max(maxId, node->id.Get());
+			}
+			graph.idPool.reset(maxId + 1);
+		}
+	}
+
+	std::string copySelectedToString()
+	{
+		auto nodeIds = GraphUtils::getSelectedNodes();
+		if (nodeIds.size() == 0)
+		{
+			return {};
+		}
+
+		std::erase_if(nodeIds, [&](auto node)
+		{
+			return graph.findNode<OutputNode>(node) != nullptr;
+		});
+
+		auto links = graph.links;
+		std::erase_if(links, [&](auto link)
+		{
+			return !nodeIds.contains(link.from().nodeId()) || !nodeIds.contains(link.to().nodeId());
+		});
+
+		auto nodesToSave = nodeIds
+			| std::views::transform([&](auto node) {return graph.findNode<ExpressionNode>(node); })
+			| std::ranges::to<std::vector>();
+
+		json j;
+		Serializer s(true, j);
+
+		NodeSerializer::repo = &archetypes;
+
+		s.serialize("nodes", nodesToSave);
+		s.serialize("links", links);
+
+		j["type"] = "MLS-subgraph";
+
+		return j.dump(4);
+	}
+
+	void pasteFromString(std::string_view src)
+	{
+		json j = json::parse(src);
+		if (j["type"] != "MLS-subgraph")
+		{
+			return;
+		}
+
+		std::unordered_map<NodeId, NodeId> newIdMap;
+		for (auto& node : j["nodes"])
+		{
+			const auto oldId = node["id"].template get<NodeId::InnerType>();
+			const auto newId = graph.idPool.take();
+			newIdMap.emplace(oldId, newId);
+			node["id"] = newId;
+		}
+
+		Serializer s(false, j);
+		NodeSerializer::repo = &archetypes;
+
+		std::vector<LinkId> links;
+		std::vector<Graph::Node::Ptr> nodes;
+
+		s.serialize("nodes", nodes);
+		s.serialize("links", links);
+
+		sf::Vector2f boundsMin;
+		sf::Vector2f boundsMax;
+
+		for (const auto& node : nodes)
+		{
+			const auto pos = ed::GetNodePosition(node->id);
+
+			boundsMin.x = std::min(boundsMin.x, pos.x);
+			boundsMin.y = std::min(boundsMin.y, pos.y);
+
+			boundsMax.x = std::max(boundsMax.x, pos.x);
+			boundsMax.y = std::max(boundsMax.y, pos.y);
+		}
+
+		const auto viewRect = reinterpret_cast<ax::NodeEditor::Detail::EditorContext*>(ed::GetCurrentEditor())->GetViewRect();
+		const auto center = (viewRect.Min + viewRect.Max) / 2;
+
+		const auto offset = center - (boundsMin + boundsMax) / 2.f;
+
+		ed::ClearSelection();
+		for (auto& node : nodes)
+		{
+			const auto id = node->id;
+			ed::SelectNode(id, true);
+			ed::SetNodePosition(id, ed::GetNodePosition(id) + offset);
+			graph.AddNode(std::move(node));
+		}
+
+		for (auto& link : links)
+		{
+			PinId from = link.from();
+			PinId to = link.to();
+
+			to = PinId::makeInput(newIdMap.at(to.nodeId()), to.index());
+			from = PinId::makeOutput(newIdMap.at(from.nodeId()), from.index());
+
+			graph.addLink(from, to);
+		}
+	}
+
 	void draw()
 	{
 		const auto mousePos = ImGui::GetMousePos();
@@ -682,4 +816,63 @@ struct GraphEditor
 		ImGui::Separator();
 		ImGui::EndChild();
 	}
+
+	void update()
+	{
+		for (auto& node : graph.nodes)
+		{
+			if (!node)
+			{
+				continue;
+			}
+
+			static_cast<ExpressionNode&>(*node).update(&graphContext);
+		}
+
+		for (auto& link : graph.links)
+		{
+			graph.getNode<ExpressionNode>(link.to().nodeId()).inputs[link.to().index()].link = link;
+			graph.getNode<ExpressionNode>(link.from().nodeId()).outputs[link.from().index()].linkCount++;
+		}
+
+		bool vertexOutFound = false;
+		bool fragmentOutFound = false;
+
+		for (auto& node : graph.nodes)
+		{
+			if (!node)
+			{
+				continue;
+			}
+
+			if (auto* n = dynamic_cast<OutputNode*>(node.get()))
+			{
+				if (n->type == CodeGenerator::Type::Vertex)
+				{
+					vertexOutFound = true;
+				}
+				else if (n->type == CodeGenerator::Type::Fragment)
+				{
+					fragmentOutFound = true;
+				}
+			}
+		}
+
+		if (!vertexOutFound)
+		{
+			auto node = graph.AddNode(archetypes.get("out_vertex").createNode());
+			ed::SetNodePosition(node.id, ImVec2(0.f, -100.f));
+		}
+
+		if (!fragmentOutFound)
+		{
+			auto node = graph.AddNode(archetypes.get("out_fragment").createNode());
+			ed::SetNodePosition(node.id, ImVec2(0.f, 100.f));
+		}
+	}
 };
+
+inline void serialize(Serializer& s, GraphEditor& editor)
+{
+	editor.serialize(s);
+}
