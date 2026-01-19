@@ -45,21 +45,19 @@
 
 #include "material-editor.hpp"
 
+#include <nvdialog.h>
+
 namespace ed = ax::NodeEditor;
-
-static void serialize(Serializer& s, Graph::Node::Ptr& n)
-{
-	NodeSerializer::serialize(s, n);
-}
-
-static void serialize(Serializer& s, Graph::Node* n)
-{
-	NodeSerializer::serialize(s, n);
-}
 
 int main()
 {
-	MaterialEditor editor{};
+	if (nvd_init() != 0)
+	{
+		puts("Failed to initialize NvDialog.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	ProjectEditor editor{};
 	while (true)
 	{
 		editor.update();

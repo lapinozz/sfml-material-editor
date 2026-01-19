@@ -70,3 +70,13 @@ struct NodeSerializer
 		}
 	}
 };
+
+inline void serialize(Serializer& s, Graph::Node::Ptr& n)
+{
+	NodeSerializer::serialize(s, n);
+}
+
+inline void serialize(Serializer& s, Graph::Node* n)
+{
+	NodeSerializer::serialize(s, n);
+}
