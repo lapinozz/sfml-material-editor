@@ -16,20 +16,24 @@
 #include "material.hpp"
 #include "map-list-box.hpp"
 #include "variant-emplace.hpp"
-
-#include "nfd.h"
 #include "base64.hpp"
+#include "file-utils.hpp"
 
 #include "material-tab.hpp"
 
 #include "imgui_node_editor_internal.h"
 
-struct MaterialEditor
+#include "editor/cousine.hpp"
+
+#include <nvdialog.h>
+
+struct ProjectEditor
 {
 	sf::RenderWindow window;
 
+	std::string currentPath;
+
 	ArchetypeRepo archetypes;
-	GraphContext graphContext;
 
 	MaterialRepo materialRepo;
 
@@ -50,11 +54,10 @@ struct MaterialEditor
 
 	Preview preview;
 
-	MaterialEditor() :
+	ProjectEditor() :
 		window{ sf::VideoMode{ { 1800u, 900u } }, "CMake SFML Project", sf::Style::Default, sf::State::Windowed }
 	{
 		window.setVerticalSyncEnabled(true);
-		window.setFramerateLimit(30);
 
 		initImgui();
 		initArchetypes();
@@ -73,7 +76,8 @@ struct MaterialEditor
 
 		ImGuiIO& io = ImGui::GetIO();
 		io.Fonts->Clear();
-		io.Fonts->AddFontFromFileTTF("./Cousine-Regular.ttf", baseFontSize * sizeScalar)->Scale = 1.f / sizeScalar;
+		io.Fonts->AddFontFromMemoryCompressedTTF(Cousine_compressed_data, Cousine_compressed_size, baseFontSize * sizeScalar)->Scale = 1.f / sizeScalar;
+		//io.Fonts->AddFontFromFileTTF("./Cousine-Regular.ttf", baseFontSize * sizeScalar)->Scale = 1.f / sizeScalar;
 
 		ImFontConfig font_cfg;
 		font_cfg.FontDataOwnedByAtlas = false;
@@ -150,6 +154,58 @@ struct MaterialEditor
 		}
 
 		return &it->second;
+	}
+
+	void load(std::string_view path)
+	{
+
+	}
+
+	void save()
+	{
+
+	}
+
+	void saveAs(std::string_view path)
+	{
+
+	}
+
+	bool close()
+	{
+		if (!currentPath.empty())
+		{
+			NvdDialogBox* dialog = nvd_dialog_box_new(
+				"Hello, world!", // Title of the dialog
+				"Hello world ! This is a dialog box created using libnvdialog!", // Message of the dialog
+				NVD_DIALOG_SIMPLE // What is the dialog representing? (Eg a warning). In this
+								  // case, it represents a simple dialog with no context.
+			);
+
+			/* Showing the dialog to the user/client. */
+			nvd_show_dialog(dialog);
+			/* Freeing the dialog is important since it takes up memory to exist. */
+			nvd_free_object(dialog);
+
+			save();
+		}
+
+
+
+		return true;
+	}
+
+	void clear()
+	{
+		currentPath = {};
+
+		materialRepo = {};
+
+		materialTabs = {};
+		textureReferences = {};
+
+		openTabs = {};
+		selectedMaterialTab = {};
 	}
 
 	void serialize(Serializer& s)
@@ -357,18 +413,10 @@ struct MaterialEditor
 
 				if (ImGui::Button("..."))
 				{
-					nfdu8filteritem_t filter{ "Image File", "bmp,png,tga,jpg,gif,psd,hdr,pic,pnm" };
-					nfdopendialogu8args_t args = { 0 };
-					args.filterList = &filter;
-					args.filterCount = 1;
-					nfdu8char_t* outPath;
-					nfdresult_t result = NFD_OpenDialogU8_With(&outPath, &args);
-					if (result == NFD_OKAY)
+					if (const auto path = FileUtils::browseFile(false, FileUtils::defaultImageFilter))
 					{
-						textureReference.data = outPath;
-						textureReference.data = std::filesystem::relative(textureReference.data).string();
+						textureReference.data = std::filesystem::relative(*path).string();
 						reloadTexture = true;
-						NFD_FreePathU8(outPath);
 					}
 				}
 			}
@@ -376,18 +424,9 @@ struct MaterialEditor
 			{
 				if (ImGui::Button("Select Image"))
 				{
-					nfdu8filteritem_t filter{ "Image File", "bmp,png,tga,jpg,gif,psd,hdr,pic,pnm" };
-					nfdopendialogu8args_t args = { 0 };
-					args.filterList = &filter;
-					args.filterCount = 1;
-					nfdu8char_t* outPath;
-					nfdresult_t result = NFD_OpenDialogU8_With(&outPath, &args);
-					if (result == NFD_OKAY)
+					if (const auto path = FileUtils::browseFile(false, FileUtils::defaultImageFilter))
 					{
-						std::string path = outPath;
-						path = std::filesystem::relative(path).string();
-
-						std::ifstream inputFile(path, std::ios_base::binary);
+						std::ifstream inputFile(*path, std::ios_base::binary);
 
 						if (inputFile)
 						{
@@ -400,7 +439,6 @@ struct MaterialEditor
 						}
 
 						reloadTexture = true;
-						NFD_FreePathU8(outPath);
 					}
 				}
 			}
@@ -439,8 +477,33 @@ struct MaterialEditor
 		{
 			if (ImGui::BeginMenu("File"))
 			{
-				if (ImGui::MenuItem("New")) { /* Handle New action */ }
-				if (ImGui::MenuItem("Open", "Ctrl+O")) { /* Handle Open action */ }
+				if (ImGui::MenuItem("New", "Ctrl+N"))
+				{
+					if (const auto path = FileUtils::browseFile(true, FileUtils::MlspFilter))
+					{
+						currentPath = *path;
+					}
+				}
+				if (ImGui::MenuItem("Open", "Ctrl+O"))
+				{
+					if (const auto path = FileUtils::browseFile(false, FileUtils::MlspFilter))
+					{
+
+					}
+				}
+				if (ImGui::MenuItem("Save", "Ctrl+S"))
+				{
+					if (const auto path = FileUtils::browseFile(true, FileUtils::MlspFilter))
+					{
+					}
+				}
+				if (ImGui::MenuItem("Save as", "Ctrl+Shift+A"))
+				{
+					if (const auto path = FileUtils::browseFile(true, FileUtils::MlspFilter))
+					{
+						currentPath = *path;
+					}
+				}
 				ImGui::EndMenu();
 			}
 			if (ImGui::BeginMenu("Edit"))
@@ -604,9 +667,9 @@ struct MaterialEditor
 		{
 			processEvents();
 
-			const auto deltaTiem = clock.restart();
-			runningTime += deltaTiem.asSeconds();
-			ImGui::SFML::Update(window, deltaTiem);
+			const auto deltaTime = clock.restart();
+			runningTime += deltaTime.asSeconds();
+			ImGui::SFML::Update(window, deltaTime);
 
 			drawMainWindow();
 

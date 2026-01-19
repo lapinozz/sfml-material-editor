@@ -36,6 +36,12 @@ FetchContent_Declare(ImGui-SFML
     GIT_TAG 5e8f8fb857c8f3cff1096bf3e4402c64e3bcf6af)
 FetchContent_MakeAvailable(ImGui-SFML)
 
+FetchContent_Declare(nvdialog
+    GIT_REPOSITORY https://github.com/lapinozz/nvdialog
+    GIT_TAG 1fd880e5561a8782260397451a9538c97c620955
+)
+FetchContent_MakeAvailable(nvdialog)
+
 set(IMNOED_DIR "${PROJECT_SOURCE_DIR}/deps/imgui-node-editor")
 
 file( GLOB_RECURSE SRCS ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.hpp )
@@ -54,7 +60,7 @@ target_include_directories(CMakeSFMLProject PRIVATE ${PROJECT_SOURCE_DIR}/deps/)
 
 target_include_directories(CMakeSFMLProject PRIVATE "${IMNOED_DIR}")
 
-target_link_libraries(CMakeSFMLProject PRIVATE sfml-graphics ImGui-SFML::ImGui-SFML nfd::nfd)
+target_link_libraries(CMakeSFMLProject PRIVATE sfml-graphics ImGui-SFML::ImGui-SFML nfd::nfd nvdialog)
 target_compile_definitions(CMakeSFMLProject PUBLIC IMGUI_DEFINE_MATH_OPERATORS)
 target_compile_features(CMakeSFMLProject PRIVATE cxx_std_23)
 
