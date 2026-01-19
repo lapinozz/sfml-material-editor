@@ -37,7 +37,7 @@ FetchContent_Declare(ImGui-SFML
 FetchContent_MakeAvailable(ImGui-SFML)
 
 FetchContent_Declare(nvdialog
-    GIT_REPOSITORY https://github.com/lapinozz/nvdialog
+    GIT_REPOSITORY https://github.com/tseli0s/nvdialog
     GIT_TAG 1fd880e5561a8782260397451a9538c97c620955
 )
 FetchContent_MakeAvailable(nvdialog)
