@@ -25,7 +25,7 @@
 
 #include "editor/cousine.hpp"
 
-#include <nvdialog.h>
+#include "dialog-utils.hpp"
 
 struct ProjectEditor
 {
@@ -156,41 +156,147 @@ struct ProjectEditor
 		return &it->second;
 	}
 
-	void load(std::string_view path)
+	std::optional<std::string> getProjectPath() const
 	{
+		if (currentPath.empty())
+		{
+			return std::nullopt;
+		}
 
+		return currentPath;
 	}
 
-	void save()
+	bool isDirty()
 	{
-
+		if (const auto fileData = FileUtils::readFile(currentPath, true))
+		{
+			if (const auto projectData = serializeToString())
+			{
+				return *fileData != *projectData;
+			}
+		}
+		
+		return true;
 	}
 
-	void saveAs(std::string_view path)
+	bool newProject()
 	{
+		if (!close())
+		{
+			return false;
+		}
 
+		return true;
+	}
+
+	bool load(std::string path = {})
+	{
+		if (!close())
+		{
+			return false;
+		}
+
+		if (path.empty())
+		{
+			if (const auto pathOptional = FileUtils::browseFile(false, FileUtils::MlspFilter))
+			{
+				path = *pathOptional;
+			}
+			else
+			{
+				return false;
+			}
+		}
+
+		if (path.empty())
+		{
+			return false;
+		}
+
+		if (auto data = FileUtils::readFile(path, true))
+		{
+			if (serializeFromString(*data))
+			{
+				currentPath = std::move(path);
+				return true;
+			}
+		}
+
+		return false;
+
+		//selectedMaterialTab = "";
+	}
+
+	bool save()
+	{
+		if (currentPath.empty())
+		{
+			if (const auto pathOptional = FileUtils::browseFile(true, FileUtils::MlspFilter))
+			{
+				currentPath = *pathOptional;
+			}
+		}
+
+		if (currentPath.empty())
+		{
+			return false;
+		}
+
+		if (auto data = serializeToString())
+		{
+			if (std::ofstream of{ currentPath })
+			{
+				of << *data;
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	bool saveAs(std::string path = {})
+	{
+		if (path.empty())
+		{
+			if (const auto pathOptional = FileUtils::browseFile(true, FileUtils::MlspFilter))
+			{
+				path = *pathOptional;
+			}
+			else
+			{
+				return false;
+			}
+		}
+
+		if (path.empty())
+		{
+			return false;
+		}
+
+		currentPath = std::move(path);
+		return save();
 	}
 
 	bool close()
 	{
-		if (!currentPath.empty())
+		if (isDirty())
 		{
-			NvdDialogBox* dialog = nvd_dialog_box_new(
-				"Hello, world!", // Title of the dialog
-				"Hello world ! This is a dialog box created using libnvdialog!", // Message of the dialog
-				NVD_DIALOG_SIMPLE // What is the dialog representing? (Eg a warning). In this
-								  // case, it represents a simple dialog with no context.
-			);
+			const auto status = Dialog::Show(Dialog::Type::YesNoCancel, "Unsaved Changes", "The project has unsaved changes.\nDo you want to save?");
 
-			/* Showing the dialog to the user/client. */
-			nvd_show_dialog(dialog);
-			/* Freeing the dialog is important since it takes up memory to exist. */
-			nvd_free_object(dialog);
-
-			save();
+			if (status == Dialog::Status::Yes)
+			{
+				if (!save())
+				{
+					return false;
+				}
+			}
+			else if (status == Dialog::Status::Cancel)
+			{
+				return false;
+			}
 		}
 
-
+		clear();
 
 		return true;
 	}
@@ -220,6 +326,40 @@ struct ProjectEditor
 		{
 			updateTextures();
 		}
+	}
+
+	std::optional<std::string> serializeToString()
+	{
+		try
+		{
+			json j;
+			Serializer s(true, j);
+			serialize(s);
+			return j.dump();
+		}
+		catch (...)
+		{
+		}
+
+		return std::nullopt;
+	}
+
+	bool serializeFromString(const std::string& data)
+	{
+		try
+		{
+			clear();
+
+			auto j = json::parse(data);
+			Serializer s(false, j);
+			serialize(s);
+			return true;
+		}
+		catch (...)
+		{
+		}
+
+		return false;
 	}
 
 	void processEvents()
@@ -413,10 +553,17 @@ struct ProjectEditor
 
 				if (ImGui::Button("..."))
 				{
-					if (const auto path = FileUtils::browseFile(false, FileUtils::defaultImageFilter))
+					if (auto basePath = getProjectPath())
 					{
-						textureReference.data = std::filesystem::relative(*path).string();
-						reloadTexture = true;
+						if (const auto path = FileUtils::browseFile(false, FileUtils::defaultImageFilter))
+						{
+							textureReference.data = std::filesystem::relative(*path, *basePath).string();
+							reloadTexture = true;
+						}
+					}
+					else
+					{
+						Dialog::Show(Dialog::Type::Error, "Save Project First", "Save the project to a file to select a relative path.");
 					}
 				}
 			}
@@ -479,30 +626,19 @@ struct ProjectEditor
 			{
 				if (ImGui::MenuItem("New", "Ctrl+N"))
 				{
-					if (const auto path = FileUtils::browseFile(true, FileUtils::MlspFilter))
-					{
-						currentPath = *path;
-					}
+					newProject();
 				}
 				if (ImGui::MenuItem("Open", "Ctrl+O"))
 				{
-					if (const auto path = FileUtils::browseFile(false, FileUtils::MlspFilter))
-					{
-
-					}
+					load();
 				}
 				if (ImGui::MenuItem("Save", "Ctrl+S"))
 				{
-					if (const auto path = FileUtils::browseFile(true, FileUtils::MlspFilter))
-					{
-					}
+					save();
 				}
 				if (ImGui::MenuItem("Save as", "Ctrl+Shift+A"))
 				{
-					if (const auto path = FileUtils::browseFile(true, FileUtils::MlspFilter))
-					{
-						currentPath = *path;
-					}
+					saveAs();
 				}
 				ImGui::EndMenu();
 			}
@@ -588,9 +724,9 @@ struct ProjectEditor
 					continue;
 				}
 
-				const auto name = ImGui::TabBarGetTabName(tab_bar, tab);
+				const std::string name = ImGui::TabBarGetTabName(tab_bar, tab);
 
-				if (!name)
+				if (name.empty() || !materialTabs.contains(name))
 				{
 					continue;
 				}

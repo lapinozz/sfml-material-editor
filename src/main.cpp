@@ -45,18 +45,10 @@
 
 #include "material-editor.hpp"
 
-#include <nvdialog.h>
-
 namespace ed = ax::NodeEditor;
 
 int main()
 {
-	if (nvd_init() != 0)
-	{
-		puts("Failed to initialize NvDialog.\n");
-		exit(EXIT_FAILURE);
-	}
-
 	ProjectEditor editor{};
 	while (true)
 	{
