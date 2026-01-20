@@ -209,6 +209,7 @@ void serialize(Serializer& s, std::unordered_map<Key, Value>& map)
 			{
 				pairs.push_back(pair);
 			}
+			std::ranges::sort(pairs, {}, &Pair::first);
 			return pairs;
 		},
 		[&](auto& pairs)

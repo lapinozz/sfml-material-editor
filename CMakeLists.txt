@@ -42,6 +42,12 @@ FetchContent_Declare(nvdialog
 )
 FetchContent_MakeAvailable(nvdialog)
 
+FetchContent_Declare(PlatformFolders
+    GIT_REPOSITORY https://github.com/sago007/PlatformFolders
+    GIT_TAG 4.3.0
+)
+FetchContent_MakeAvailable(PlatformFolders)
+
 set(IMNOED_DIR "${PROJECT_SOURCE_DIR}/deps/imgui-node-editor")
 
 file( GLOB_RECURSE SRCS ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.hpp )
@@ -60,7 +66,11 @@ target_include_directories(CMakeSFMLProject PRIVATE ${PROJECT_SOURCE_DIR}/deps/)
 
 target_include_directories(CMakeSFMLProject PRIVATE "${IMNOED_DIR}")
 
-target_link_libraries(CMakeSFMLProject PRIVATE sfml-graphics ImGui-SFML::ImGui-SFML nfd::nfd nvdialog)
+target_link_libraries(CMakeSFMLProject PRIVATE SFML::Graphics
+                                                ImGui-SFML::ImGui-SFML 
+                                                nfd::nfd nvdialog 
+                                                sago::platform_folders)
+
 target_compile_definitions(CMakeSFMLProject PUBLIC IMGUI_DEFINE_MATH_OPERATORS)
 target_compile_features(CMakeSFMLProject PRIVATE cxx_std_23)
 

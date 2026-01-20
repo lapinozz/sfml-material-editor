@@ -42,4 +42,18 @@ inline std::optional<std::string> browseFile(bool save, nfdu8filteritem_t filter
 	return std::move(path);
 }
 
+inline std::optional<std::string> readFile(const std::string& path, bool binaryMode = true)
+{
+	std::ifstream inputFile(path, binaryMode ? std::ios_base::binary : 0);
+	if (!inputFile)
+	{
+		return std::nullopt;
+	}
+
+	return std::string{
+		(std::istreambuf_iterator<char>(inputFile)),
+		std::istreambuf_iterator<char>()
+	};
+}
+
 }
