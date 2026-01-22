@@ -701,6 +701,44 @@ struct GraphEditor
 		}
 	}
 
+	void ensureOutputNodesExist()
+	{
+		bool vertexOutFound = false;
+		bool fragmentOutFound = false;
+
+		for (auto& node : graph.nodes)
+		{
+			if (!node)
+			{
+				continue;
+			}
+
+			if (auto* n = dynamic_cast<OutputNode*>(node.get()))
+			{
+				if (n->type == CodeGenerator::Type::Vertex)
+				{
+					vertexOutFound = true;
+				}
+				else if (n->type == CodeGenerator::Type::Fragment)
+				{
+					fragmentOutFound = true;
+				}
+			}
+		}
+
+		if (!vertexOutFound)
+		{
+			auto node = graph.AddNode(archetypes.get("out_vertex").createNode());
+			ed::SetNodePosition(node.id, ed::GetViewScroll() / ed::GetViewZoom() + ed::GetViewSize() * ImVec2(1.f, 0.5f) + ImVec2(-200.f, -100.f));
+		}
+
+		if (!fragmentOutFound)
+		{
+			auto node = graph.AddNode(archetypes.get("out_fragment").createNode());
+			ed::SetNodePosition(node.id, ed::GetViewScroll() / ed::GetViewZoom() + ed::GetViewSize() * ImVec2(1.f, 0.5f) + ImVec2(-200.f, 100.f));
+		}
+	}
+
 	void draw()
 	{
 		const auto mousePos = ImGui::GetMousePos();
@@ -815,6 +853,8 @@ struct GraphEditor
 
 		ImGui::Separator();
 		ImGui::EndChild();
+
+		ensureOutputNodesExist();
 	}
 
 	void update()
@@ -833,41 +873,6 @@ struct GraphEditor
 		{
 			graph.getNode<ExpressionNode>(link.to().nodeId()).inputs[link.to().index()].link = link;
 			graph.getNode<ExpressionNode>(link.from().nodeId()).outputs[link.from().index()].linkCount++;
-		}
-
-		bool vertexOutFound = false;
-		bool fragmentOutFound = false;
-
-		for (auto& node : graph.nodes)
-		{
-			if (!node)
-			{
-				continue;
-			}
-
-			if (auto* n = dynamic_cast<OutputNode*>(node.get()))
-			{
-				if (n->type == CodeGenerator::Type::Vertex)
-				{
-					vertexOutFound = true;
-				}
-				else if (n->type == CodeGenerator::Type::Fragment)
-				{
-					fragmentOutFound = true;
-				}
-			}
-		}
-
-		if (!vertexOutFound)
-		{
-			auto node = graph.AddNode(archetypes.get("out_vertex").createNode());
-			ed::SetNodePosition(node.id, ed::GetViewScroll() / ed::GetViewZoom() + ed::GetViewSize() * ImVec2(1.f, 0.5f) + ImVec2(-200.f, -100.f));
-		}
-
-		if (!fragmentOutFound)
-		{
-			auto node = graph.AddNode(archetypes.get("out_fragment").createNode());
-			ed::SetNodePosition(node.id, ed::GetViewScroll() / ed::GetViewZoom() + ed::GetViewSize() * ImVec2(1.f, 0.5f) + ImVec2(-200.f, 100.f));
 		}
 	}
 };
