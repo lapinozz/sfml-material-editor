@@ -467,6 +467,35 @@ struct ProjectEditor
 			vertexEditor.SetText(tab->vertexCode);
 			fragmentEditor.SetText(tab->fragmentCode);
 		}
+		else
+		{
+			const auto label = "Select or add a material to edit.";
+
+			ImGuiStyle& style = ImGui::GetStyle(); 
+			ImGuiIO& io = ImGui::GetIO();
+
+			auto scale = 1.5f;
+
+			const auto size = ImGui::CalcTextSize(label) + style.FramePadding * 2.0f;
+			const auto avail = ImGui::GetContentRegionAvail();
+
+			const auto useX = (size.x + 100.f) * scale;
+
+			if (useX > avail.x)
+			{
+				scale *= avail.x / useX;
+			}
+
+			const auto off = (avail - size * scale) * 0.5f;
+			ImGui::SetCursorPosX(ImGui::GetCursorPosX() + off.x);
+			ImGui::SetCursorPosY(ImGui::GetCursorPosY() + off.y);
+
+			ImGui::SetWindowFontScale(scale);
+
+			ImGui::Text(label);
+
+			ImGui::SetWindowFontScale(1.f);
+		}
 	}
 
 	void drawMaterialList()
