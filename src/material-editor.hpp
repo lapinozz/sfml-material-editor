@@ -61,6 +61,8 @@ struct ProjectEditor
 
 		initImgui();
 		initArchetypes();
+
+		updateWindowTitle();
 	}
 
 	void initImgui()
@@ -189,6 +191,18 @@ struct ProjectEditor
 		return true;
 	}
 
+	void updateWindowTitle()
+	{
+		if (const auto path = getProjectPath())
+		{
+			window.setTitle(std::format("My Little Shader Editor - {}", *path));
+		}
+		else
+		{
+			window.setTitle("My Little Shader Editor - Unsaved");
+		}
+	}
+
 	bool load(std::string path = {})
 	{
 		if (!close())
@@ -218,6 +232,7 @@ struct ProjectEditor
 			if (serializeFromString(*data))
 			{
 				currentPath = std::move(path);
+				updateWindowTitle();
 				return true;
 			}
 		}
@@ -247,6 +262,7 @@ struct ProjectEditor
 			if (std::ofstream of{ currentPath })
 			{
 				of << *data;
+				updateWindowTitle();
 				return true;
 			}
 		}
@@ -312,6 +328,8 @@ struct ProjectEditor
 
 		openTabs = {};
 		selectedMaterialTab = {};
+
+		updateWindowTitle();
 	}
 
 	void serialize(Serializer& s)
