@@ -244,6 +244,8 @@ struct ProjectEditor
 
 	bool save()
 	{
+		const auto previousPath = currentPath;
+
 		if (currentPath.empty())
 		{
 			if (const auto pathOptional = FileUtils::browseFile(true, FileUtils::MlspFilter))
@@ -255,6 +257,11 @@ struct ProjectEditor
 		if (currentPath.empty())
 		{
 			return false;
+		}
+
+		if (!previousPath.empty() && previousPath != currentPath)
+		{
+			fixupTexturePaths(previousPath, currentPath);
 		}
 
 		if (auto data = serializeToString())
@@ -272,6 +279,8 @@ struct ProjectEditor
 
 	bool saveAs(std::string path = {})
 	{
+		const auto previousPath = currentPath;
+
 		if (path.empty())
 		{
 			if (const auto pathOptional = FileUtils::browseFile(true, FileUtils::MlspFilter))
@@ -290,6 +299,12 @@ struct ProjectEditor
 		}
 
 		currentPath = std::move(path);
+
+		if (!previousPath.empty() && previousPath != currentPath)
+		{
+			fixupTexturePaths(previousPath, currentPath);
+		}
+
 		return save();
 	}
 
@@ -531,6 +546,20 @@ struct ProjectEditor
 		if (materialTabs.contains(selectedId))
 		{
 
+		}
+	}
+
+	void fixupTexturePaths(const std::string& oldPath, const std::string& newPath)
+	{
+		for (auto& [id, textureReference] : textureReferences)
+		{
+			if (textureReference.type == TextureReference::Type::Path)
+			{
+				namespace fs = std::filesystem;
+				const auto absolutePath = fs::path{ oldPath } / fs::path{ textureReference.data };
+				const auto relativePath = fs::relative(absolutePath, newPath);
+				textureReference.data = relativePath.string();
+			}
 		}
 	}
 
