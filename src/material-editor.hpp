@@ -27,6 +27,9 @@
 
 #include "dialog-utils.hpp"
 
+#include "shortcuts.hpp"
+#include "configs.hpp"
+
 struct ProjectEditor
 {
 	sf::RenderWindow window;
@@ -54,15 +57,21 @@ struct ProjectEditor
 
 	Preview preview;
 
+	Shortcuts shortcuts;
+	Configs configs;
+
 	ProjectEditor() :
 		window{ sf::VideoMode{ { 1800u, 900u } }, "CMake SFML Project", sf::Style::Default, sf::State::Windowed }
 	{
 		window.setVerticalSyncEnabled(true);
 
 		initImgui();
+		initShortcuts();
 		initArchetypes();
 
 		updateWindowTitle();
+
+		configs = Configs::load();
 	}
 
 	void initImgui()
@@ -106,6 +115,21 @@ struct ProjectEditor
 		ImVec4* colors = ImGui::GetStyle().Colors;
 		colors[ImGuiCol_Border] = ImVec4(0.56f, 0.56f, 0.56f, 0.50f);
 		colors[ImGuiCol_FrameBg] = ImVec4(0.05f, 0.05f, 0.05f, 0.67f);
+	}
+
+	void initShortcuts()
+	{
+		using namespace sf::Keyboard;
+		shortcuts = {{
+			"File",
+			{
+				Shortcut{[&] {newProject(); },	"New",			Key::N, Shortcut::Modifier::Ctrl},
+				Shortcut{[&] {load(); },		"Open",			Key::O, Shortcut::Modifier::Ctrl},
+				//Shortcut{[&] {save(); },		"Open Recent",	Key::, 0},
+				Shortcut{[&] {save(); },		"Save",			Key::S, Shortcut::Modifier::Ctrl},
+				Shortcut{[&] {saveAs() ;},		"Save As",		Key::S, Shortcut::Modifier::Ctrl | Shortcut::Modifier::Shift},
+			}
+		}};
 	}
 
 	void initArchetypes()
@@ -203,6 +227,31 @@ struct ProjectEditor
 		}
 	}
 
+	void setCurrentPath(const std::string& newPath)
+	{
+		if (newPath == currentPath)
+		{
+			return;
+		}
+
+		const auto previousPath = currentPath;
+
+		if (!previousPath.empty() && previousPath != currentPath)
+		{
+			fixupTexturePaths(previousPath, currentPath);
+		}
+
+		currentPath = newPath;
+
+		updateWindowTitle();
+
+		auto& recentProjects = configs.recentProjects;
+		std::erase(recentProjects, newPath);
+		recentProjects.insert(recentProjects.begin(), newPath);
+		recentProjects.resize(std::min<std::size_t>(recentProjects.size(), 10));
+		Configs::save(configs);
+	}
+
 	bool load(std::string path = {})
 	{
 		if (!close())
@@ -214,7 +263,7 @@ struct ProjectEditor
 		{
 			if (const auto pathOptional = FileUtils::browseFile(false, FileUtils::MlspFilter))
 			{
-				path = *pathOptional;
+				setCurrentPath(*pathOptional);
 			}
 			else
 			{
@@ -222,46 +271,35 @@ struct ProjectEditor
 			}
 		}
 
-		if (path.empty())
+		if (currentPath.empty())
 		{
 			return false;
 		}
 
-		if (auto data = FileUtils::readFile(path, true))
+		if (auto data = FileUtils::readFile(currentPath, true))
 		{
 			if (serializeFromString(*data))
 			{
-				currentPath = std::move(path);
-				updateWindowTitle();
 				return true;
 			}
 		}
 
 		return false;
-
-		//selectedMaterialTab = "";
 	}
 
 	bool save()
 	{
-		const auto previousPath = currentPath;
-
 		if (currentPath.empty())
 		{
 			if (const auto pathOptional = FileUtils::browseFile(true, FileUtils::MlspFilter))
 			{
-				currentPath = *pathOptional;
+				setCurrentPath(*pathOptional);
 			}
 		}
 
 		if (currentPath.empty())
 		{
 			return false;
-		}
-
-		if (!previousPath.empty() && previousPath != currentPath)
-		{
-			fixupTexturePaths(previousPath, currentPath);
 		}
 
 		if (auto data = serializeToString())
@@ -269,7 +307,6 @@ struct ProjectEditor
 			if (std::ofstream of{ currentPath })
 			{
 				of << *data;
-				updateWindowTitle();
 				return true;
 			}
 		}
@@ -279,13 +316,11 @@ struct ProjectEditor
 
 	bool saveAs(std::string path = {})
 	{
-		const auto previousPath = currentPath;
-
 		if (path.empty())
 		{
 			if (const auto pathOptional = FileUtils::browseFile(true, FileUtils::MlspFilter))
 			{
-				path = *pathOptional;
+				setCurrentPath(*pathOptional);
 			}
 			else
 			{
@@ -293,16 +328,9 @@ struct ProjectEditor
 			}
 		}
 
-		if (path.empty())
+		if (currentPath.empty())
 		{
 			return false;
-		}
-
-		currentPath = std::move(path);
-
-		if (!previousPath.empty() && previousPath != currentPath)
-		{
-			fixupTexturePaths(previousPath, currentPath);
 		}
 
 		return save();
@@ -328,14 +356,13 @@ struct ProjectEditor
 		}
 
 		clear();
+		setCurrentPath("");
 
 		return true;
 	}
 
 	void clear()
 	{
-		currentPath = {};
-
 		materialRepo = {};
 
 		materialTabs = {};
@@ -343,8 +370,6 @@ struct ProjectEditor
 
 		openTabs = {};
 		selectedMaterialTab = {};
-
-		updateWindowTitle();
 	}
 
 	void serialize(Serializer& s)
@@ -415,6 +440,17 @@ struct ProjectEditor
 				if (ImGui::GetIO().WantCaptureKeyboard)
 				{
 					continue;
+				}
+
+				for (auto& [_, shortcuts] : shortcuts)
+				{
+					for (auto& shortcut : shortcuts)
+					{
+						if (shortcut.matchesEvent(*e))
+						{
+							shortcut.callback();
+						}
+					}
 				}
 
 				if (e->code == sf::Keyboard::Key::L)
@@ -698,25 +734,35 @@ struct ProjectEditor
 
 		if (ImGui::BeginMenuBar())
 		{
-			if (ImGui::BeginMenu("File"))
+			for (auto& [category, shortcuts] : shortcuts)
 			{
-				if (ImGui::MenuItem("New", "Ctrl+N"))
+				if (ImGui::BeginMenu(category.c_str()))
 				{
-					newProject();
+					for (auto& shortcut : shortcuts)
+					{
+						if (ImGui::MenuItem(shortcut.name.c_str(), shortcut.makeKeyStr().c_str()))
+						{
+							shortcut.callback();
+						}
+
+						if (shortcut.name == "Open")
+						{
+							if (ImGui::BeginMenu("Open Recent..", !configs.recentProjects.empty()))
+							{
+								for (const auto& path : configs.recentProjects)
+								{
+									if (ImGui::MenuItem(path.c_str()))
+									{
+										load(path);
+									}
+								}
+
+								ImGui::EndMenu();
+							}
+						}
+					}
+					ImGui::EndMenu();
 				}
-				if (ImGui::MenuItem("Open", "Ctrl+O"))
-				{
-					load();
-				}
-				if (ImGui::MenuItem("Save", "Ctrl+S"))
-				{
-					save();
-				}
-				if (ImGui::MenuItem("Save as", "Ctrl+Shift+A"))
-				{
-					saveAs();
-				}
-				ImGui::EndMenu();
 			}
 			if (ImGui::BeginMenu("Edit"))
 			{
