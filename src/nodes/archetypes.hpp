@@ -40,6 +40,11 @@ struct NodeSerializer
 
 		if (s.isSaving)
 		{
+			if (!n)
+			{
+				return;
+			}
+
 			auto& node = static_cast<ExpressionNode&>(*n);
 			s.serialize("type_id", node.archetype->id);
 			node.serialize(s);
