@@ -57,4 +57,18 @@ inline std::optional<std::string> readFile(const std::string& path, bool binaryM
 	};
 }
 
+inline bool writeFile(const std::string& path, std::string_view data, bool binaryMode = true)
+{
+	const auto directoryPath = std::filesystem::path{ path }.remove_filename();
+	std::filesystem::create_directories(directoryPath);
+
+	if (std::ofstream of{ path, binaryMode ? std::ios_base::binary : 0 })
+	{
+		of << data;
+		return true;
+	}
+
+	return false;
+}
+
 }

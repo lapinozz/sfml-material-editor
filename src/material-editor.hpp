@@ -60,6 +60,8 @@ struct ProjectEditor
 	Shortcuts shortcuts;
 	Configs configs;
 
+	std::string emptyProject;
+
 	ProjectEditor() :
 		window{ sf::VideoMode{ { 1800u, 900u } }, "CMake SFML Project", sf::Style::Default, sf::State::Windowed }
 	{
@@ -71,7 +73,14 @@ struct ProjectEditor
 
 		updateWindowTitle();
 
-		configs = Configs::load();
+		emptyProject = *serializeToString();
+
+		configs.loadFromFile();
+
+		if (configs.autoLoadLastProject && !configs.recentProjects.empty())
+		{
+			load(configs.recentProjects[0]);
+		}
 	}
 
 	void initImgui()
@@ -125,9 +134,9 @@ struct ProjectEditor
 			{
 				Shortcut{[&] {newProject(); },	"New",			Key::N, Shortcut::Modifier::Ctrl},
 				Shortcut{[&] {load(); },		"Open",			Key::O, Shortcut::Modifier::Ctrl},
-				//Shortcut{[&] {save(); },		"Open Recent",	Key::, 0},
 				Shortcut{[&] {save(); },		"Save",			Key::S, Shortcut::Modifier::Ctrl},
-				Shortcut{[&] {saveAs() ;},		"Save As",		Key::S, Shortcut::Modifier::Ctrl | Shortcut::Modifier::Shift},
+				Shortcut{[&] {saveAs(); },		"Save As",		Key::S, Shortcut::Modifier::Ctrl | Shortcut::Modifier::Shift},
+				Shortcut{[&] {configs.openMenu();},	"Preferences",		Key::Unknown, 0},
 			}
 		}};
 	}
@@ -194,9 +203,14 @@ struct ProjectEditor
 
 	bool isDirty()
 	{
-		if (const auto fileData = FileUtils::readFile(currentPath, true))
+		if (const auto projectData = serializeToString())
 		{
-			if (const auto projectData = serializeToString())
+			if (projectData == emptyProject)
+			{
+				return false;
+			}
+			
+			if (const auto fileData = FileUtils::readFile(currentPath, true))
 			{
 				return *fileData != *projectData;
 			}
@@ -245,11 +259,14 @@ struct ProjectEditor
 
 		updateWindowTitle();
 
-		auto& recentProjects = configs.recentProjects;
-		std::erase(recentProjects, newPath);
-		recentProjects.insert(recentProjects.begin(), newPath);
-		recentProjects.resize(std::min<std::size_t>(recentProjects.size(), 10));
-		Configs::save(configs);
+		if (!newPath.empty())
+		{
+			auto& recentProjects = configs.recentProjects;
+			std::erase(recentProjects, newPath);
+			recentProjects.insert(recentProjects.begin(), newPath);
+			recentProjects.resize(std::min<std::size_t>(recentProjects.size(), 10));
+			configs.saveToFile();
+		}
 	}
 
 	bool load(std::string path = {})
@@ -269,6 +286,10 @@ struct ProjectEditor
 			{
 				return false;
 			}
+		}
+		else
+		{
+			setCurrentPath(path);
 		}
 
 		if (currentPath.empty())
@@ -304,11 +325,7 @@ struct ProjectEditor
 
 		if (auto data = serializeToString())
 		{
-			if (std::ofstream of{ currentPath })
-			{
-				of << *data;
-				return true;
-			}
+			return FileUtils::writeFile(currentPath, *data);
 		}
 
 		return false;
@@ -773,6 +790,8 @@ struct ProjectEditor
 
 			ImGui::EndMenuBar();
 		}
+
+		configs.showMenu();
 
 		static ImGuiTableFlags flags = ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_Resizable | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_ContextMenuInBody;
 		ImGui::BeginTable("table", 3, flags);

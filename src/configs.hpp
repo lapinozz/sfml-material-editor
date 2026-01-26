@@ -9,15 +9,23 @@
 #include "file-utils.hpp"
 #include "serializer.hpp"
 
+#include "imgui.h"
+
 struct Configs
 {
 	std::vector<std::string> recentProjects;
+	bool autoLoadLastProject{};
+
+	bool needOpenMenu{};
 
 	static std::string getConfigFilePath();
 
-	static Configs load();
+	void loadFromFile();
+	void saveToFile();
 
-	static void save(Configs& configs);
+	void openMenu();
+	void showMenu();
+
 };
 
 void serialize(Serializer& s, Configs& configs);
