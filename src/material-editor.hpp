@@ -129,16 +129,25 @@ struct ProjectEditor
 	void initShortcuts()
 	{
 		using namespace sf::Keyboard;
-		shortcuts = {{
+		shortcuts = {
+		{
 			"File",
 			{
 				Shortcut{[&] {newProject(); },	"New",			Key::N, Shortcut::Modifier::Ctrl},
 				Shortcut{[&] {load(); },		"Open",			Key::O, Shortcut::Modifier::Ctrl},
 				Shortcut{[&] {save(); },		"Save",			Key::S, Shortcut::Modifier::Ctrl},
 				Shortcut{[&] {saveAs(); },		"Save As",		Key::S, Shortcut::Modifier::Ctrl | Shortcut::Modifier::Shift},
-				Shortcut{[&] {configs.openMenu();},	"Preferences",		Key::Unknown, 0},
+				Shortcut{[&] {configs.openMenu(); },	"Preferences",		Key::Unknown, 0},
 			}
-		}};
+		},{
+			"Edit",
+			{
+				Shortcut{[&] {onCut(); },		"Cut",			Key::X, Shortcut::Modifier::Ctrl},
+				Shortcut{[&] {onCopy(); },		"Copy",			Key::C, Shortcut::Modifier::Ctrl},
+				Shortcut{[&] {onPaste(); },		"Paste",		Key::V, Shortcut::Modifier::Ctrl},
+				}
+		}
+		};
 	}
 
 	void initArchetypes()
@@ -389,6 +398,31 @@ struct ProjectEditor
 		selectedMaterialTab = {};
 	}
 
+	void onCut()
+	{
+		if (auto* tab = getCurrentTab())
+		{
+			onCopy();
+			tab->graphEditor.deleteSelected();
+		}
+	}
+
+	void onCopy()
+	{
+		if (auto* tab = getCurrentTab())
+		{
+			sf::Clipboard::setString(tab->graphEditor.copySelectedToString());
+		}
+	}
+
+	void onPaste()
+	{
+		if(auto* tab = getCurrentTab())
+		{
+			tab->graphEditor.pasteFromString(sf::Clipboard::getString().toAnsiString());
+		}
+	}
+
 	void serialize(Serializer& s)
 	{
 		NodeSerializer::repo = &archetypes;
@@ -469,35 +503,8 @@ struct ProjectEditor
 						}
 					}
 				}
-
-				if (e->code == sf::Keyboard::Key::L)
-				{
-					json j;
-					std::ifstream file("./test.json");
-					file >> j;
-					file.close();
-
-					Serializer s(false, j);
-
-					serialize(s);
-
-					selectedMaterialTab = "";
-
-				}
-				else if (e->code == sf::Keyboard::Key::S)
-				{
-					//saveTab(selectedMaterialTab);
-
-					json j;
-					Serializer s(true, j);
-
-					serialize(s);
-
-					std::ofstream of("./test.json");
-					of << j;
-					of.close();
-				}
-				else if (e->code == sf::Keyboard::Key::Y)
+				
+				if (e->code == sf::Keyboard::Key::Y)
 				{
 					//UEGraphAdapter::CurrentGraph = &graph;
 
@@ -506,20 +513,6 @@ struct ProjectEditor
 
 					//Formatter formatter{ &graph };
 					//formatter.format();
-				}
-				else if (e->code == sf::Keyboard::Key::C && e->control)
-				{
-					if (auto* tab = getCurrentTab())
-					{
-						sf::Clipboard::setString(tab->graphEditor.copySelectedToString());
-					}
-				}
-				else if (e->code == sf::Keyboard::Key::V && e->control)
-				{
-					if (auto* tab = getCurrentTab())
-					{
-						tab->graphEditor.pasteFromString(sf::Clipboard::getString().toAnsiString());
-					}
 				}
 			}
 		}
@@ -780,12 +773,6 @@ struct ProjectEditor
 					}
 					ImGui::EndMenu();
 				}
-			}
-			if (ImGui::BeginMenu("Edit"))
-			{
-				if (ImGui::MenuItem("Cut")) { /* Handle Cut action */ }
-				if (ImGui::MenuItem("Copy")) { /* Handle Copy action */ }
-				ImGui::EndMenu();
 			}
 
 			ImGui::EndMenuBar();

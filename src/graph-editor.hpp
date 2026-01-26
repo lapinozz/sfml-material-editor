@@ -637,67 +637,82 @@ struct GraphEditor
 
 	void pasteFromString(std::string_view src)
 	{
-		json j = json::parse(src);
-		if (j["type"] != "MLS-subgraph")
+		try
 		{
-			return;
+			json j = json::parse(src);
+			if (j["type"] != "MLS-subgraph")
+			{
+				return;
+			}
+
+			std::unordered_map<NodeId, NodeId> newIdMap;
+			for (auto& node : j["nodes"])
+			{
+				const auto oldId = node["id"].template get<NodeId::InnerType>();
+				const auto newId = graph.idPool.take();
+				newIdMap.emplace(oldId, newId);
+				node["id"] = newId;
+			}
+
+			Serializer s(false, j);
+			NodeSerializer::repo = &archetypes;
+
+			std::vector<LinkId> links;
+			std::vector<Graph::Node::Ptr> nodes;
+
+			s.serialize("nodes", nodes);
+			s.serialize("links", links);
+
+			sf::Vector2f boundsMin;
+			sf::Vector2f boundsMax;
+
+			for (const auto& node : nodes)
+			{
+				const auto pos = ed::GetNodePosition(node->id);
+
+				boundsMin.x = std::min(boundsMin.x, pos.x);
+				boundsMin.y = std::min(boundsMin.y, pos.y);
+
+				boundsMax.x = std::max(boundsMax.x, pos.x);
+				boundsMax.y = std::max(boundsMax.y, pos.y);
+			}
+
+			const auto viewRect = reinterpret_cast<ax::NodeEditor::Detail::EditorContext*>(ed::GetCurrentEditor())->GetViewRect();
+			const auto center = (viewRect.Min + viewRect.Max) / 2;
+
+			const auto offset = center - (boundsMin + boundsMax) / 2.f;
+
+			ed::ClearSelection();
+			for (auto& node : nodes)
+			{
+				const auto id = node->id;
+				ed::SelectNode(id, true);
+				ed::SetNodePosition(id, ed::GetNodePosition(id) + offset);
+				graph.AddNode(std::move(node));
+			}
+
+			for (auto& link : links)
+			{
+				PinId from = link.from();
+				PinId to = link.to();
+
+				to = PinId::makeInput(newIdMap.at(to.nodeId()), to.index());
+				from = PinId::makeOutput(newIdMap.at(from.nodeId()), from.index());
+
+				graph.addLink(from, to);
+			}
 		}
-
-		std::unordered_map<NodeId, NodeId> newIdMap;
-		for (auto& node : j["nodes"])
+		catch (...)
 		{
-			const auto oldId = node["id"].template get<NodeId::InnerType>();
-			const auto newId = graph.idPool.take();
-			newIdMap.emplace(oldId, newId);
-			node["id"] = newId;
+
 		}
+	}
 
-		Serializer s(false, j);
-		NodeSerializer::repo = &archetypes;
-
-		std::vector<LinkId> links;
-		std::vector<Graph::Node::Ptr> nodes;
-
-		s.serialize("nodes", nodes);
-		s.serialize("links", links);
-
-		sf::Vector2f boundsMin;
-		sf::Vector2f boundsMax;
-
-		for (const auto& node : nodes)
+	void deleteSelected()
+	{
+		for (const auto nodeId : GraphUtils::getSelectedNodes())
 		{
-			const auto pos = ed::GetNodePosition(node->id);
-
-			boundsMin.x = std::min(boundsMin.x, pos.x);
-			boundsMin.y = std::min(boundsMin.y, pos.y);
-
-			boundsMax.x = std::max(boundsMax.x, pos.x);
-			boundsMax.y = std::max(boundsMax.y, pos.y);
-		}
-
-		const auto viewRect = reinterpret_cast<ax::NodeEditor::Detail::EditorContext*>(ed::GetCurrentEditor())->GetViewRect();
-		const auto center = (viewRect.Min + viewRect.Max) / 2;
-
-		const auto offset = center - (boundsMin + boundsMax) / 2.f;
-
-		ed::ClearSelection();
-		for (auto& node : nodes)
-		{
-			const auto id = node->id;
-			ed::SelectNode(id, true);
-			ed::SetNodePosition(id, ed::GetNodePosition(id) + offset);
-			graph.AddNode(std::move(node));
-		}
-
-		for (auto& link : links)
-		{
-			PinId from = link.from();
-			PinId to = link.to();
-
-			to = PinId::makeInput(newIdMap.at(to.nodeId()), to.index());
-			from = PinId::makeOutput(newIdMap.at(from.nodeId()), from.index());
-
-			graph.addLink(from, to);
+			graph.removeNode(nodeId);
 		}
 	}
 

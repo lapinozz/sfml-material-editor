@@ -47,6 +47,11 @@ struct Shortcut
 
 	std::string makeKeyStr() const
 	{
+		if (key == sf::Keyboard::Key::Unknown)
+		{
+			return {};
+		}
+
 		std::string str;
 
 		if (modifiers & Modifier::Ctrl)
