@@ -1,6 +1,7 @@
 #pragma once
 
 #include <variant>
+#include <assert.h>
 
 template <typename... Ts>
 void variantEmplace(std::variant<Ts...>& v, std::size_t i)

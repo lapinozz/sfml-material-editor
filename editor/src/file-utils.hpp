@@ -5,6 +5,7 @@
 #include <fstream>
 #include <optional>
 #include <string>
+#include <filesystem>
 
 namespace FileUtils
 {

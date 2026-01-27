@@ -67,7 +67,8 @@ target_include_directories(MLSE PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/deps/)
 target_include_directories(MLSE PRIVATE "${IMNOED_DIR}")
 
 target_link_libraries(MLSE PRIVATE  ImGui-SFML::ImGui-SFML 
-                                                nfd::nfd nvdialog 
+                                                nfd::nfd 
+                                                nvdialog 
                                                 sago::platform_folders
                                                 MLS::MLS)
 
