@@ -1,0 +1,16 @@
+{
+  "version": 3,
+  "configurePresets":[
+    {
+      "name": "dev",
+      "binaryDir": "build",
+      "installDir": "${sourceDir}/build/install",
+      "cacheVariables": {
+        "CMAKE_CXX_EXTENSIONS": "OFF",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "BUILD_SHARED_LIBS": "FALSE",
+        "CMAKE_BUILD_TYPE": "Debug"
+      }
+    }
+  ]
+}

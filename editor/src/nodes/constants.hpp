@@ -3,6 +3,7 @@
 #include <array>
 
 #include "../value.hpp"
+#include "nodes/expression.hpp"
 
 struct ConstantNode : ExpressionNode
 {

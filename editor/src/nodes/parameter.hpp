@@ -6,7 +6,7 @@
 #include "archetypes.hpp"
 #include "expression.hpp"
 
-#include "../ViewportScopeGuard.hpp"
+#include "ViewportScopeGuard.hpp"
 
 struct ParameterNode : ExpressionNode
 {

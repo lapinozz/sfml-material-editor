@@ -1,5 +1,8 @@
 #pragma once
 
+#include "value.hpp"
+#include "float-field.hpp"
+#include "archetype.hpp"
 #include "../constants.hpp"
 
 struct CodeGenerator;

@@ -2,7 +2,10 @@
 
 #include <unordered_set>
 
+#include <SFML/Graphics.hpp>
+
 #include "graph.hpp"
+#include "formatting/Private/UEGraphAdapter.h"
 
 template<typename T>
 sf::Rect<T> mergeRects(const sf::Rect<T>& r1, const sf::Rect<T>& r2)
@@ -37,7 +40,7 @@ namespace GraphUtils
     {
         std::unordered_set<NodeId> SelectedGraphNodes;
         std::vector<ed::NodeId> ids(ed::GetSelectedObjectCount());
-        ids.resize(ed::GetSelectedNodes(ids.data(), ids.size()));
+        ids.resize(ed::GetSelectedNodes(ids.data(), (int)ids.size()));
         for (const auto Node : ids)
         {
             SelectedGraphNodes.emplace(NodeId{ Node });

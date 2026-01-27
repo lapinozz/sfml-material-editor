@@ -166,7 +166,7 @@ struct Preview
 				previewView = sf::View({}, contentSize);
 				zoom = 1.f;
 
-				(void)previewTexture.resize(sf::Vector2u(contentSize.x, contentSize.y));
+				(void)previewTexture.resize(sf::Vector2u(contentSize));
 			}
 
 			previewTexture.clear();
