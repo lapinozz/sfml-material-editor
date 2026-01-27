@@ -1,78 +1,79 @@
 #pragma once
 
-#include <functional>
-#include <string>
-#include <vector>
-#include <unordered_map>
+#include <SFML/Window.hpp>
 
 #include <SFML/System.hpp>
-#include <SFML/Window.hpp>
+
+#include <functional>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 struct Shortcut
 {
-	enum Modifier
-	{
-		Ctrl	= 1 << 0,
-		Shift	= 1 << 1,
-		Alt		= 1 << 2,
-	};
+    enum Modifier
+    {
+        Ctrl = 1 << 0,
+        Shift = 1 << 1,
+        Alt = 1 << 2,
+    };
 
-	std::function<void()> callback;
+    std::function<void()> callback;
 
-	std::string name;
-	sf::Keyboard::Key key;
-	int modifiers;
+    std::string name;
+    sf::Keyboard::Key key;
+    int modifiers;
 
-	bool matchesEvent(const sf::Event::KeyPressed& event) const
-	{
-		if (event.code != key)
-		{
-			return false;
-		}
-		else if (!!(modifiers & Modifier::Ctrl) != event.control)
-		{
-			return false;
-		}
-		else if (!!(modifiers & Modifier::Shift) != event.shift)
-		{
-			return false;
-		}
-		else if (!!(modifiers & Modifier::Alt) != event.alt)
-		{
-			return false;
-		}
+    bool matchesEvent(const sf::Event::KeyPressed& event) const
+    {
+        if (event.code != key)
+        {
+            return false;
+        }
+        else if (!!(modifiers & Modifier::Ctrl) != event.control)
+        {
+            return false;
+        }
+        else if (!!(modifiers & Modifier::Shift) != event.shift)
+        {
+            return false;
+        }
+        else if (!!(modifiers & Modifier::Alt) != event.alt)
+        {
+            return false;
+        }
 
-		return true;
-	}
+        return true;
+    }
 
-	std::string makeKeyStr() const
-	{
-		if (key == sf::Keyboard::Key::Unknown)
-		{
-			return {};
-		}
+    std::string makeKeyStr() const
+    {
+        if (key == sf::Keyboard::Key::Unknown)
+        {
+            return {};
+        }
 
-		std::string str;
+        std::string str;
 
-		if (modifiers & Modifier::Ctrl)
-		{
-			str += "Ctrl+";
-		}
+        if (modifiers & Modifier::Ctrl)
+        {
+            str += "Ctrl+";
+        }
 
-		if (modifiers & Modifier::Alt)
-		{
-			str += "Alt+";
-		}
+        if (modifiers & Modifier::Alt)
+        {
+            str += "Alt+";
+        }
 
-		if (modifiers & Modifier::Shift)
-		{
-			str += "Shift+";
-		}
+        if (modifiers & Modifier::Shift)
+        {
+            str += "Shift+";
+        }
 
-		str += sf::Keyboard::getDescription(sf::Keyboard::delocalize(key));
+        str += sf::Keyboard::getDescription(sf::Keyboard::delocalize(key));
 
-		return str;
-	}
+        return str;
+    }
 };
 
 using Shortcuts = std::unordered_map<std::string, std::vector<Shortcut>>;
