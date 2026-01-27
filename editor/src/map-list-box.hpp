@@ -1,5 +1,8 @@
 #pragma once
 
+//ImGui
+#include "misc/cpp/imgui_stdlib.h"
+
 struct MapListBoxData
 {
 	std::string scrollItemId;

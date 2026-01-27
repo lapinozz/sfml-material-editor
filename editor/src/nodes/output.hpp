@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../value.hpp"
+#include "code-generator.hpp"
 
 struct OutputNode : ExpressionNode
 {

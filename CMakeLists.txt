@@ -1,86 +1,73 @@
-cmake_minimum_required(VERSION 3.6)
-project(CMakeSFMLProject LANGUAGES CXX)
+cmake_minimum_required(VERSION 3.28)
+project(MLS LANGUAGES CXX)
+
+include(GenerateExportHeader)
+
+option(MLS_FIND_SFML "Use find_package to find SFML" OFF)
+
+if(MLS_FIND_SFML)
+  if(NOT BUILD_SHARED_LIBS)
+    set(SFML_STATIC_LIBRARIES ON)
+  endif()
+  find_package(SFML 3 REQUIRED COMPONENTS Graphics)
+endif()
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
-include(FetchContent)
+set(MLS_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
-#add_compile_options(-fsanitize=address)
-#add_link_options(-fsanitize=address)
+file( GLOB_RECURSE MLS_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+file( GLOB_RECURSE MLS_INCLUDES "${MLS_INCLUDE_DIR}/*.hpp" )
 
-FetchContent_Declare(nativefiledialog
-    GIT_REPOSITORY https://github.com/btzy/nativefiledialog-extended
-    GIT_TAG v1.2.1
-    GIT_SHALLOW ON
-    EXCLUDE_FROM_ALL
-    SYSTEM)
-FetchContent_MakeAvailable(nativefiledialog)
+add_library(MLS ${MLS_SRCS} ${MLS_INCLUDES})
+add_library(MLS::MLS ALIAS MLS)
 
-FetchContent_Declare(SFML
-    GIT_REPOSITORY https://github.com/SFML/SFML.git
-    GIT_TAG 016bea9491ccafc3529019fe1d403885a8b3a6ae)
-FetchContent_MakeAvailable(SFML)
+target_compile_features(MLS PRIVATE cxx_std_20)
+set_property(TARGET MLS PROPERTY CXX_STANDARD 20)
 
-FetchContent_Declare(IMGUI
-    GIT_REPOSITORY https://github.com/lapinozz/imgui.git
-    GIT_TAG origin/MyLittleShader)
-FetchContent_MakeAvailable(IMGUI)
+target_link_libraries(MLS PUBLIC SFML::Graphics)
 
-set(IMGUI_DIR "${imgui_SOURCE_DIR}")
-
-set(IMGUI_SFML_FIND_SFML OFF)
-set(IMGUI_SFML_FIND_IMGUI OFF)
-FetchContent_Declare(ImGui-SFML
-    GIT_REPOSITORY https://github.com/SFML/imgui-sfml
-    GIT_TAG 5e8f8fb857c8f3cff1096bf3e4402c64e3bcf6af)
-FetchContent_MakeAvailable(ImGui-SFML)
-
-FetchContent_Declare(nvdialog
-    GIT_REPOSITORY https://github.com/tseli0s/nvdialog
-    GIT_TAG 1fd880e5561a8782260397451a9538c97c620955
-)
-FetchContent_MakeAvailable(nvdialog)
-
-FetchContent_Declare(PlatformFolders
-    GIT_REPOSITORY https://github.com/sago007/PlatformFolders
-    GIT_TAG 4.3.0
-)
-FetchContent_MakeAvailable(PlatformFolders)
-
-set(IMNOED_DIR "${PROJECT_SOURCE_DIR}/deps/imgui-node-editor")
-
-file( GLOB_RECURSE SRCS ${PROJECT_SOURCE_DIR}/src/*.cpp ${PROJECT_SOURCE_DIR}/src/*.hpp )
-
-add_executable(CMakeSFMLProject 
-    ${SRCS}
-    "${IMNOED_DIR}/imgui_canvas.cpp" 
-    "${IMNOED_DIR}/crude_json.cpp" 
-    "${IMNOED_DIR}/imgui_node_editor.cpp" 
-    "${IMNOED_DIR}/imgui_node_editor_api.cpp"
-    "${PROJECT_SOURCE_DIR}/deps/ImGuiColorTextEdit/TextEditor.cpp"
+target_include_directories(MLS PUBLIC
+    $<TARGET_PROPERTY:MLS,BINARY_DIR>
+    $<TARGET_PROPERTY:MLS,SOURCE_DIR>/include
 )
 
-target_include_directories(CMakeSFMLProject PRIVATE ${PROJECT_SOURCE_DIR}/src/)
-target_include_directories(CMakeSFMLProject PRIVATE ${PROJECT_SOURCE_DIR}/deps/)
+generate_export_header(MLS)
 
-target_include_directories(CMakeSFMLProject PRIVATE "${IMNOED_DIR}")
+if(BUILD_SHARED_LIBS)
+    set_target_properties(MLS PROPERTIES DEBUG_POSTFIX "_d")
+endif()
 
-target_link_libraries(CMakeSFMLProject PRIVATE SFML::Graphics
-                                                ImGui-SFML::ImGui-SFML 
-                                                nfd::nfd nvdialog 
-                                                sago::platform_folders)
+install(TARGETS MLS EXPORT MLSTargets
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib
+    RUNTIME DESTINATION bin
+    PUBLIC_HEADER DESTINATION include
+)
 
-target_compile_definitions(CMakeSFMLProject PUBLIC IMGUI_DEFINE_MATH_OPERATORS)
-target_compile_features(CMakeSFMLProject PRIVATE cxx_std_23)
+install(EXPORT MLSTargets
+    FILE MLSConfig.cmake
+    DESTINATION share/cmake/MLS
+)
 
-#if (MSVC AND WIN32 AND NOT MSVC_VERSION VERSION_LESS 142)
-#    target_link_options(CMakeSFMLProject PRIVATE $<$<CONFIG:Debug>:/INCREMENTAL>)
-#    target_compile_options(CMakeSFMLProject PRIVATE $<$<CONFIG:Debug>:/ZI>)
-#endif()
-    
-set_target_properties(
-    CMakeSFMLProject PROPERTIES
-    VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:CMakeSFMLProject>)
+install(TARGETS MLS
+  EXPORT MLS
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
 
-install(TARGETS CMakeSFMLProject)
+install(EXPORT MLS
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/MLS
+  NAMESPACE MLS::
+)
+
+install(FILES ${PROJECT_SOURCE_DIR}/cmake/MLSConfig.cmake
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/MLS
+)
+
+option(MLS_BUILD_EDITOR "Build the MLS editor" ON)
+if(MLS_BUILD_EDITOR)
+  add_subdirectory(editor)
+endif()

@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "graph-editor.hpp"
+#include "mls/material.hpp"
 
 struct EditorTextureReference : TextureReference
 {

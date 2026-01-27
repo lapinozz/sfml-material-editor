@@ -1,6 +1,6 @@
-#include "material.hpp"
+#include "mls/material.hpp"
 
-#include "base64.hpp"
+#include "mls/base64.hpp"
 
 std::optional<MaterialRepo> MaterialRepo::loadFromFile(std::string_view path, const TextureLoadingCallback& textureLoadingCallback)
 {
