@@ -1,223 +1,221 @@
 #pragma once
 
-#include <variant>
-#include <string>
 #include <format>
+#include <string>
+#include <variant>
 
 struct NoneType
 {
-	bool operator==(const NoneType&) const = default;
+    bool operator==(const NoneType&) const = default;
 };
 
 struct GenType
 {
-	uint8_t arrity{};
-	bool operator==(const GenType&) const = default;
+    uint8_t arrity{};
+    bool operator==(const GenType&) const = default;
 };
 
 struct MatrixType
 {
-	uint8_t x{};
-	uint8_t y{};
+    uint8_t x{};
+    uint8_t y{};
 
-	bool operator==(const MatrixType&) const = default;
+    bool operator==(const MatrixType&) const = default;
 };
 
 struct SamplerType
 {
-	bool operator==(const SamplerType&) const = default;
+    bool operator==(const SamplerType&) const = default;
 };
 
 struct ArrayType
 {
-	//std::unique_ptr<struct ValueType> innerType;
-	bool operator==(const ArrayType&) const = default;
+    //std::unique_ptr<struct ValueType> innerType;
+    bool operator==(const ArrayType&) const = default;
 };
 
 struct ValueType : std::variant<NoneType, GenType, MatrixType, SamplerType, ArrayType>
 {
-	constexpr ValueType() : variant{ NoneType{} }
-	{
+    constexpr ValueType() : variant{NoneType{}}
+    {
+    }
 
-	}
+    template <typename... Args>
+    constexpr ValueType(Args... args) : variant{args...}
+    {
+    }
 
-	template<typename...Args>
-	constexpr ValueType(Args...args) : variant{ args... }
-	{
+    bool operator==(const ValueType&) const = default;
 
-	}
+    operator bool() const
+    {
+        return index() != 0;
+    }
 
-	bool operator==(const ValueType&) const = default;
+    std::string toString() const
+    {
+        assert(index() > 0);
+        if (const auto* t = std::get_if<GenType>(this))
+        {
+            if (t->arrity == 1)
+            {
+                return "float";
+            }
+            else
+            {
+                return std::format("vec{}", t->arrity);
+            }
+        }
+        else if (const auto* y = std::get_if<SamplerType>(this))
+        {
+            return "sampler2D";
+        }
 
-	operator bool() const
-	{
-		return index() != 0;
-	}
+        assert(false);
+    }
 
-	std::string toString() const
-	{
-		assert(index() > 0);
-		if (const auto* t = std::get_if<GenType>(this))
-		{
-			if (t->arrity == 1)
-			{
-				return "float";
-			}
-			else
-			{
-				return std::format("vec{}", t->arrity);
-			}
-		}
-		else if (const auto* y = std::get_if<SamplerType>(this))
-		{
-			return "sampler2D";
-		}
+    ImColor toColor() const
+    {
+        if (const auto* t = std::get_if<NoneType>(this))
+        {
+            return {0.66f, 0.66f, 0.66f, 1.f};
+        }
+        else if (const auto* t = std::get_if<GenType>(this))
+        {
+            if (t->arrity == 1)
+            {
+                return {45, 75, 196, 255};
+            }
+            else
+            {
+                return {57, 206, 112, 255};
+            }
+        }
+        else if (const auto* t = std::get_if<SamplerType>(this))
+        {
+            return {207, 109, 185, 255};
+        }
 
-		assert(false);
-	}
+        assert(false);
+    }
 
-	ImColor toColor() const
-	{
-		if (const auto* t = std::get_if<NoneType>(this))
-		{
-			return {0.66f, 0.66f, 0.66f, 1.f};
-		}
-		else if (const auto* t = std::get_if<GenType>(this))
-		{
-			if (t->arrity == 1)
-			{
-				return { 45, 75, 196, 255 };
-			}
-			else
-			{
-				return { 57, 206, 112, 255 };
-			}
-		}
-		else if (const auto* t = std::get_if<SamplerType>(this))
-		{
-			return { 207, 109, 185 , 255 };
-		}
+    bool isScalar() const
+    {
+        if (const auto* t = std::get_if<GenType>(this))
+        {
+            return t->arrity == 1;
+        }
 
-		assert(false);
-	}
+        return false;
+    }
 
-	bool isScalar() const
-	{
-		if (const auto* t = std::get_if<GenType>(this))
-		{
-			return t->arrity == 1;
-		}
+    bool isVector() const
+    {
+        if (const auto* t = std::get_if<GenType>(this))
+        {
+            return t->arrity > 1;
+        }
 
-		return false;
-	}
+        return false;
+    }
 
-	bool isVector() const
-	{
-		if (const auto* t = std::get_if<GenType>(this))
-		{
-			return t->arrity > 1;
-		}
-
-		return false;
-	}
-
-	bool isGenType() const
-	{
-		return std::holds_alternative<GenType>(*this);
-	}
+    bool isGenType() const
+    {
+        return std::holds_alternative<GenType>(*this);
+    }
 };
 
-template<typename T, typename...Args>
-constexpr ValueType makeValueType(Args...args)
+template <typename T, typename... Args>
+constexpr ValueType makeValueType(Args... args)
 {
-	return T{args...};
+    return T{args...};
 }
 
-template<typename T, typename...Args>
-constexpr ValueType makeArrayValueType(std::uint16_t arrity, Args...args)
+template <typename T, typename... Args>
+constexpr ValueType makeArrayValueType(std::uint16_t arrity, Args... args)
 {
-	return { ArrayType{std::make_unique<ValueType>(T{args...})}};
+    return {ArrayType{std::make_unique<ValueType>(T{args...})}};
 }
 
 namespace Types
 {
-	static constexpr inline ValueType none{ makeValueType<NoneType>() };
-	static constexpr inline ValueType scalar{ makeValueType<GenType>(uint8_t{1}) };
-	static constexpr inline ValueType vec2{ makeValueType<GenType>(uint8_t{2}) };
-	static constexpr inline ValueType vec3{ makeValueType<GenType>(uint8_t{3}) };
-	static constexpr inline ValueType vec4{ makeValueType<GenType>(uint8_t{4}) };
+static inline constexpr ValueType none{makeValueType<NoneType>()};
+static inline constexpr ValueType scalar{makeValueType<GenType>(uint8_t{1})};
+static inline constexpr ValueType vec2{makeValueType<GenType>(uint8_t{2})};
+static inline constexpr ValueType vec3{makeValueType<GenType>(uint8_t{3})};
+static inline constexpr ValueType vec4{makeValueType<GenType>(uint8_t{4})};
 
-	ValueType makeVec(uint8_t arrity)
-	{
-		return makeValueType<GenType>(arrity);
-	};
-}
+ValueType makeVec(uint8_t arrity)
+{
+    return makeValueType<GenType>(arrity);
+};
+} // namespace Types
 
 bool canConvert(ValueType from, ValueType to)
 {
-	if (from == to)
-	{
-		return true;
-	}
+    if (from == to)
+    {
+        return true;
+    }
 
-	if (from == Types::scalar)
-	{
-		if (std::holds_alternative<GenType>(to))
-		{
-			return true;
-		}
-	}
+    if (from == Types::scalar)
+    {
+        if (std::holds_alternative<GenType>(to))
+        {
+            return true;
+        }
+    }
 
-	return false;
+    return false;
 }
 
 struct Value
 {
-	ValueType type;
-	std::string code;
+    ValueType type;
+    std::string code;
 
-	operator bool() const
-	{
-		return type;
-	}
+    operator bool() const
+    {
+        return type;
+    }
 
-	Value value_or(const auto& other) const
-	{
-		return *this ? *this : other;
-	}
+    Value value_or(const auto& other) const
+    {
+        return *this ? *this : other;
+    }
 };
 
 namespace Values
 {
-	static inline Value null{};
-	static inline Value zero{Types::scalar, "0.0f"};
-}
+static inline Value null{};
+static inline Value zero{Types::scalar, "0.0f"};
+} // namespace Values
 
 Value convert(const Value& value, const ValueType& type)
 {
-	if (value.type == type)
-	{
-		return value;
-	}
+    if (value.type == type)
+    {
+        return value;
+    }
 
-	if (value.type == Types::scalar)
-	{
-		if (auto* t2 = std::get_if<GenType>(&type))
-		{
-			std::string code;
-			code += "vec";
-			code += std::to_string(t2->arrity);
-			code += "(";
-			for (std::size_t x = 0; x < t2->arrity - 1; x++)
-			{
-				//code += value.code;
-				//code += ",";
-			}
-			code += value.code;
-			code += ")";
-			return { type, code };
-		}
-	}
+    if (value.type == Types::scalar)
+    {
+        if (auto* t2 = std::get_if<GenType>(&type))
+        {
+            std::string code;
+            code += "vec";
+            code += std::to_string(t2->arrity);
+            code += "(";
+            for (std::size_t x = 0; x < t2->arrity - 1; x++)
+            {
+                //code += value.code;
+                //code += ",";
+            }
+            code += value.code;
+            code += ")";
+            return {type, code};
+        }
+    }
 
-	return Values::null;
+    return Values::null;
 }
