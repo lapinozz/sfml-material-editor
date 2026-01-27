@@ -1,16 +1,16 @@
 #pragma once
 
+#include "graph-utils.hpp"
+#include "graph.hpp"
+
+#include <algorithm>
 #include <unordered_set>
 #include <vector>
-#include <algorithm>
-
-#include "graph.hpp"
-#include "graph-utils.hpp"
 
 class Formatter
 {
 public:
-    Graph* graph{ nullptr };
+    Graph* graph{nullptr};
 
     std::unordered_set<NodeId> GetStarterNodes()
     {
@@ -37,7 +37,7 @@ public:
         auto assignLayer = [&](auto& func, NodeId node, int layer) -> void
         {
             auto it = nodeToLayer.find(node);
-            if((it == nodeToLayer.end()) || (layer > it->second))
+            if ((it == nodeToLayer.end()) || (layer > it->second))
             {
                 nodeToLayer[node] = layer;
 
@@ -67,12 +67,12 @@ public:
             {
                 if (fixedNodes.size() == 0)
                 {
-                    fixedNodes.merge(GraphUtils::getPredecessor(*graph, { node }));
+                    fixedNodes.merge(GraphUtils::getPredecessor(*graph, {node}));
                     continue;
                 }
 
                 int smallestGap = -1;
-                for (auto pred : GraphUtils::getPredecessor(*graph, { node }))
+                for (auto pred : GraphUtils::getPredecessor(*graph, {node}))
                 {
                     if (fixedNodes.contains(pred))
                     {
@@ -101,7 +101,7 @@ public:
                 if (smallestGap > 1)
                 {
                     hasChange = true;
-                    for (auto n : GraphUtils::getPredecessor(*graph, { node }))
+                    for (auto n : GraphUtils::getPredecessor(*graph, {node}))
                     {
                         if (fixedNodes.contains(n))
                         {
@@ -112,9 +112,9 @@ public:
                     }
                 }
 
-                fixedNodes.merge(GraphUtils::getPredecessor(*graph, { node }));
+                fixedNodes.merge(GraphUtils::getPredecessor(*graph, {node}));
             }
-             
+
         } while (hasChange);
 
         int maxLayer{};
@@ -208,5 +208,3 @@ public:
         }
     }
 };
-
-

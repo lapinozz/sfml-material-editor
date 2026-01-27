@@ -2,25 +2,23 @@
 
 //TODO: add a actual pool
 
-template<typename T>
+template <typename T>
 struct IdPool
 {
-	T take()
-	{
-		return ++next;
-	}
+    T take()
+    {
+        return ++next;
+    }
 
-	void release(T t)
-	{
+    void release(T t)
+    {
+    }
 
-	}
-
-	void reset(T newNext)
-	{
-		next = newNext;
-	}
+    void reset(T newNext)
+    {
+        next = newNext;
+    }
 
 private:
-
-	T next{};
+    T next{};
 };
