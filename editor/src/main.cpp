@@ -2,10 +2,10 @@
 
 int main()
 {
-	ProjectEditor editor{};
-	while (true)
-	{
-		editor.update();
-	}
+    ProjectEditor editor{};
+    while (true)
+    {
+        editor.update();
+    }
     ImGui::SFML::Shutdown();
 }

@@ -1,63 +1,64 @@
 #pragma once
 
-#include <set>
+#include "id-pool.hpp"
+#include "mls/serializer.hpp"
 
 #include <imgui_node_editor.h>
 #include <imgui_node_editor_internal.h>
-
-#include "id-pool.hpp"
-#include "mls/serializer.hpp"
+#include <set>
 
 namespace ed = ax::NodeEditor;
 
 template <typename T, typename Tag>
 struct SafeId
 {
-	SafeId(T t) : value{ t }
-	{
-	}
+    SafeId(T t) : value{t}
+    {
+    }
 
-	SafeId(const SafeId&) = default;
+    SafeId(const SafeId&) = default;
 
-	template <typename T2, typename Tag2>
-	SafeId(
-		const SafeId
-		<
-		typename std::enable_if<!std::is_same<T, T2>::value, T2>::type,
-		typename std::enable_if<!std::is_same<Tag, Tag2>::value, Tag2>::type
-		>&) = delete;
+    template <typename T2, typename Tag2>
+    SafeId(const SafeId<typename std::enable_if<!std::is_same<T, T2>::value, T2>::type,
+                        typename std::enable_if<!std::is_same<Tag, Tag2>::value, Tag2>::type>&) = delete;
 
-	SafeId& operator=(const SafeId&) = default;
+    SafeId& operator=(const SafeId&) = default;
 
-	bool operator==(const SafeId&) const = default;
-	auto operator<=>(const SafeId&) const = default;
+    bool operator==(const SafeId&) const = default;
+    auto operator<=>(const SafeId&) const = default;
 
-	explicit operator T() const { return Get(); }
+    explicit operator T() const
+    {
+        return Get();
+    }
 
-	T Get() const { return value; }
+    T Get() const
+    {
+        return value;
+    }
 
-	void serialize(Serializer& s)
-	{
-		s.serialize(value);
-	};
+    void serialize(Serializer& s)
+    {
+        s.serialize(value);
+    };
 
-	using InnerType = T;
+    using InnerType = T;
 
 private:
-	T value;
+    T value;
 };
 
 namespace std
 {
-	template <typename T, typename Tag>
-	struct hash<SafeId<T, Tag>>
-	{
-		size_t operator()(const SafeId<T, Tag>& id) const noexcept
-		{
-			return std::hash(id.Get());
-		}
-	};
-}
+template <typename T, typename Tag>
+struct hash<SafeId<T, Tag>>
+{
+    size_t operator()(const SafeId<T, Tag>& id) const noexcept
+    {
+        return std::hash(id.Get());
+    }
+};
+} // namespace std
 
 using ShortId = std::uint32_t;
 using LongId = std::uint64_t;
@@ -66,323 +67,325 @@ struct NodeId;
 
 enum class PinDirection
 {
-	In,
-	Out
+    In,
+    Out
 };
 
 struct PinId : SafeId<ShortId, PinId>
 {
-	using SafeId::SafeId;
+    using SafeId::SafeId;
 
-	PinId(ed::PinId id) : PinId(static_cast<ShortId>(id.Get()))
-	{
-	}
+    PinId(ed::PinId id) : PinId(static_cast<ShortId>(id.Get()))
+    {
+    }
 
-	operator ed::PinId() const
-	{
-		return Get();
-	}
+    operator ed::PinId() const
+    {
+        return Get();
+    }
 
-	operator bool() const
-	{
-		return Get();
-	}
+    operator bool() const
+    {
+        return Get();
+    }
 
-	using PinIndex = std::uint8_t;
+    using PinIndex = std::uint8_t;
 
-	static constexpr ShortId pinIndexOffset = (sizeof(ShortId) - 1) * 8;
-	static constexpr ShortId pinDirOffset = pinIndexOffset + 7;
-	static constexpr ShortId pinIndexMask = 0x7F << pinIndexOffset;
-	static constexpr ShortId pinDirMask = 0x80 << pinIndexOffset;
-	static constexpr ShortId pinNodeMask = static_cast<ShortId>(-1) & ~pinIndexMask & ~pinDirMask;
+    static constexpr ShortId pinIndexOffset = (sizeof(ShortId) - 1) * 8;
+    static constexpr ShortId pinDirOffset = pinIndexOffset + 7;
+    static constexpr ShortId pinIndexMask = 0x7F << pinIndexOffset;
+    static constexpr ShortId pinDirMask = 0x80 << pinIndexOffset;
+    static constexpr ShortId pinNodeMask = static_cast<ShortId>(-1) & ~pinIndexMask & ~pinDirMask;
 
-	static inline PinId makeInput(NodeId nodeId, PinIndex index);
-	static inline PinId makeOutput(NodeId nodeId, PinIndex index);
+    static inline PinId makeInput(NodeId nodeId, PinIndex index);
+    static inline PinId makeOutput(NodeId nodeId, PinIndex index);
 
-	inline PinDirection direction() const;
-	inline PinIndex index() const;
-	inline NodeId nodeId() const;
+    inline PinDirection direction() const;
+    inline PinIndex index() const;
+    inline NodeId nodeId() const;
 };
 
 struct NodeId : SafeId<ShortId, NodeId>
 {
-	using SafeId::SafeId;
+    using SafeId::SafeId;
 
-	NodeId(ed::NodeId id) : SafeId(static_cast<ShortId>(id.Get()))
-	{
-	}
+    NodeId(ed::NodeId id) : SafeId(static_cast<ShortId>(id.Get()))
+    {
+    }
 
-	operator ed::NodeId() const
-	{
-		return Get();
-	}
+    operator ed::NodeId() const
+    {
+        return Get();
+    }
 
-	operator bool() const
-	{
-		return Get();
-	}
+    operator bool() const
+    {
+        return Get();
+    }
 
-	inline PinId makeInput(PinId::PinIndex index)
-	{
-		return PinId::makeInput(*this, index);
-	}
+    inline PinId makeInput(PinId::PinIndex index)
+    {
+        return PinId::makeInput(*this, index);
+    }
 
-	inline PinId makeOutput(PinId::PinIndex index)
-	{
-		return PinId::makeOutput(*this, index);
-	}
+    inline PinId makeOutput(PinId::PinIndex index)
+    {
+        return PinId::makeOutput(*this, index);
+    }
 };
 
 PinId PinId::makeInput(NodeId nodeId, PinIndex index)
 {
-	return nodeId.Get() | ((index + 1) << pinIndexOffset);
+    return nodeId.Get() | ((index + 1) << pinIndexOffset);
 }
 
 PinId PinId::makeOutput(NodeId nodeId, PinIndex index)
 {
-	return nodeId.Get() | ((index + 1) << pinIndexOffset) | pinDirMask;
+    return nodeId.Get() | ((index + 1) << pinIndexOffset) | pinDirMask;
 }
 
 PinDirection PinId::direction() const
 {
-	return (Get() & pinDirMask) ? PinDirection::Out : PinDirection::In;
+    return (Get() & pinDirMask) ? PinDirection::Out : PinDirection::In;
 }
 
 PinId::PinIndex PinId::index() const
 {
-	return ((Get() & pinIndexMask) >> pinIndexOffset) - 1;
+    return ((Get() & pinIndexMask) >> pinIndexOffset) - 1;
 }
 
 NodeId PinId::nodeId() const
 {
-	return Get() & pinNodeMask;
+    return Get() & pinNodeMask;
 }
 
 struct LinkId : SafeId<LongId, LinkId>
 {
-	using SafeId::SafeId;
+    using SafeId::SafeId;
 
-	LinkId(ed::LinkId id) : LinkId(id.Get())
-	{
-	}
+    LinkId(ed::LinkId id) : LinkId(id.Get())
+    {
+    }
 
-	operator ed::LinkId() const
-	{
-		return Get();
-	}
+    operator ed::LinkId() const
+    {
+        return Get();
+    }
 
-	operator bool() const
-	{
-		return Get();
-	}
+    operator bool() const
+    {
+        return Get();
+    }
 
-	static LongId make(PinId from, PinId to)
-	{
-		assert(from.direction() != to.direction());
-		if (to.direction() == PinDirection::Out)
-		{
-			std::swap(from, to);
-		}
+    static LongId make(PinId from, PinId to)
+    {
+        assert(from.direction() != to.direction());
+        if (to.direction() == PinDirection::Out)
+        {
+            std::swap(from, to);
+        }
 
-		return from.Get() | (static_cast<LongId>(to.Get()) << 32);
-	}
+        return from.Get() | (static_cast<LongId>(to.Get()) << 32);
+    }
 
-	LinkId() : SafeId{ 0 }
-	{
+    LinkId() : SafeId{0}
+    {
+    }
 
-	}
+    LinkId(PinId from, PinId to) : SafeId{make(from, to)}
+    {
+    }
 
-	LinkId(PinId from, PinId to) : SafeId{ make(from, to) }
-	{
-	}
+    PinId from() const
+    {
+        return Get() & 0xFFFFFFFF;
+    }
 
-	PinId from() const
-	{
-		return Get() & 0xFFFFFFFF;
-	}
-
-	PinId to() const
-	{
-		return Get() >> 32;
-	}
+    PinId to() const
+    {
+        return Get() >> 32;
+    }
 };
 
 namespace std
 {
-	template <>
-	struct hash<PinId>
-	{
-		size_t operator()(const PinId& id) const noexcept
-		{
-			return std::hash<ShortId>{}(id.Get());
-		}
-	};
+template <>
+struct hash<PinId>
+{
+    size_t operator()(const PinId& id) const noexcept
+    {
+        return std::hash<ShortId>{}(id.Get());
+    }
+};
 
-	template <>
-	struct hash<NodeId>
-	{
-		size_t operator()(const NodeId& id) const noexcept
-		{
-			return std::hash<ShortId>{}(id.Get());
-		}
-	};
+template <>
+struct hash<NodeId>
+{
+    size_t operator()(const NodeId& id) const noexcept
+    {
+        return std::hash<ShortId>{}(id.Get());
+    }
+};
 
-	template <>
-	struct hash<LinkId>
-	{
-		size_t operator()(const LinkId& id) const noexcept
-		{
-			return std::hash<LongId>{}(id.Get());
-		}
-	};
-}
+template <>
+struct hash<LinkId>
+{
+    size_t operator()(const LinkId& id) const noexcept
+    {
+        return std::hash<LongId>{}(id.Get());
+    }
+};
+} // namespace std
 
 inline std::ostream& operator<<(std::ostream& stream, PinId id)
 {
-	return stream << "(" << id.nodeId().Get() << "[" << +id.index() << "]" << (id.direction() == PinDirection::In ? '<' : '>') << ')';
+    return stream << "(" << id.nodeId().Get() << "[" << +id.index() << "]"
+                  << (id.direction() == PinDirection::In ? '<' : '>') << ')';
 }
 
 struct Graph
 {
-	struct Node
-	{
-		NodeId id{ 0 };
+    struct Node
+    {
+        NodeId id{0};
 
-		using Ptr = std::unique_ptr<Node>;
+        using Ptr = std::unique_ptr<Node>;
 
-		virtual ~Node() = default;
-	};
+        virtual ~Node() = default;
+    };
 
-	IdPool<ShortId> idPool;
+    IdPool<ShortId> idPool;
 
-	std::vector<Node::Ptr> nodes;
-	std::set<LinkId> links;
+    std::vector<Node::Ptr> nodes;
+    std::set<LinkId> links;
 
-	Node& AddNode(Node::Ptr&& n)
-	{
-		if (!n->id)
-		{
-			n->id = idPool.take();
-		}
-		return *nodes.emplace_back(std::move(n));
-	}
+    Node& AddNode(Node::Ptr&& n)
+    {
+        if (!n->id)
+        {
+            n->id = idPool.take();
+        }
+        return *nodes.emplace_back(std::move(n));
+    }
 
-	template<typename T>
-	T* findNode(NodeId id)
-	{
-		auto it = std::ranges::find_if(nodes, [&](auto& node) {return id == node->id; });
-		if (it == nodes.end())
-		{
-			return nullptr;
-		}
+    template <typename T>
+    T* findNode(NodeId id)
+    {
+        auto it = std::ranges::find_if(nodes, [&](auto& node) { return id == node->id; });
+        if (it == nodes.end())
+        {
+            return nullptr;
+        }
 
-		return dynamic_cast<T*>(it->get());
-	}
+        return dynamic_cast<T*>(it->get());
+    }
 
-	template<typename T>
-	T& getNode(NodeId id)
-	{
-		auto* ptr = findNode<T>(id);
-		assert(ptr);
+    template <typename T>
+    T& getNode(NodeId id)
+    {
+        auto* ptr = findNode<T>(id);
+        assert(ptr);
 
-		return *ptr;
-	}
+        return *ptr;
+    }
 
-	void addLink(PinId in, PinId out)
-	{
-		LinkId link{ out, in };
+    void addLink(PinId in, PinId out)
+    {
+        LinkId link{out, in};
 
-		removeLinks(link.to());
+        removeLinks(link.to());
 
-		links.emplace(link);
-	}
+        links.emplace(link);
+    }
 
-	void removeLink(LinkId id)
-	{
-		auto it = std::find(links.begin(), links.end(), id);
-		if (it == links.end())
-		{
-			return;
-		}
+    void removeLink(LinkId id)
+    {
+        auto it = std::find(links.begin(), links.end(), id);
+        if (it == links.end())
+        {
+            return;
+        }
 
-		it = links.erase(it);
-	}
+        it = links.erase(it);
+    }
 
-	void removeLinks(NodeId id)
-	{
-		auto it = links.begin();
-		while (true)
-		{
-			it = std::find_if(it, links.end(), [&](const auto& link) {return id == link.from().nodeId() || id == link.to().nodeId(); });
-			if (it == links.end())
-			{
-				break;
-			}
+    void removeLinks(NodeId id)
+    {
+        auto it = links.begin();
+        while (true)
+        {
+            it = std::find_if(it,
+                              links.end(),
+                              [&](const auto& link) { return id == link.from().nodeId() || id == link.to().nodeId(); });
+            if (it == links.end())
+            {
+                break;
+            }
 
-			it = links.erase(it);
-		}
-	}
+            it = links.erase(it);
+        }
+    }
 
-	void removeLinks(PinId id)
-	{
-		auto it = links.begin();
-		while (true)
-		{
-			it = std::find_if(it, links.end(), [&](const auto& link) {return id == link.from() || id == link.to(); });
-			if (it == links.end())
-			{
-				break;
-			}
+    void removeLinks(PinId id)
+    {
+        auto it = links.begin();
+        while (true)
+        {
+            it = std::find_if(it, links.end(), [&](const auto& link) { return id == link.from() || id == link.to(); });
+            if (it == links.end())
+            {
+                break;
+            }
 
-			it = links.erase(it);
-		}
-	}
+            it = links.erase(it);
+        }
+    }
 
-	LinkId findLink(PinId id) const
-	{
-		if (id.direction() == PinDirection::In)
-		{
-			auto it = links.lower_bound(LinkId{ NodeId{0}.makeOutput(0), id });
-			if (it != links.end() && it->to() == id)
-			{
-				return *it;
-			}
-		}
-		else
-		{
-			auto it = std::ranges::find_if(links, [&](auto& link) {return link.from() == id; });
-			if (it != links.end())
-			{
-				return *it;
-			}
-		}
+    LinkId findLink(PinId id) const
+    {
+        if (id.direction() == PinDirection::In)
+        {
+            auto it = links.lower_bound(LinkId{NodeId{0}.makeOutput(0), id});
+            if (it != links.end() && it->to() == id)
+            {
+                return *it;
+            }
+        }
+        else
+        {
+            auto it = std::ranges::find_if(links, [&](auto& link) { return link.from() == id; });
+            if (it != links.end())
+            {
+                return *it;
+            }
+        }
 
-		return LinkId{0};
-	}
+        return LinkId{0};
+    }
 
-	void removeNode(NodeId id)
-	{
-		auto it = std::ranges::find_if(nodes, [&](auto& node) {return id == node->id; });
-		if (it == nodes.end())
-		{
-			return;
-		}
+    void removeNode(NodeId id)
+    {
+        auto it = std::ranges::find_if(nodes, [&](auto& node) { return id == node->id; });
+        if (it == nodes.end())
+        {
+            return;
+        }
 
-		auto& node = **it;
-		
-		removeLinks(id);
+        auto& node = **it;
 
-		nodes.erase(it);
-	}
+        removeLinks(id);
 
-	bool hasLink(LinkId link)
-	{
-		return std::ranges::contains(links, link);
-	}
+        nodes.erase(it);
+    }
+
+    bool hasLink(LinkId link)
+    {
+        return std::ranges::contains(links, link);
+    }
 };
 
-template<typename T, typename Tag>
+template <typename T, typename Tag>
 void serialize(Serializer& s, SafeId<T, Tag>& i)
 {
-	i.serialize(s);
+    i.serialize(s);
 };

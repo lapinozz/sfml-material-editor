@@ -1,31 +1,28 @@
 #pragma once
 
-#include <platform_folders.h>
-
-#include <string>
-#include <vector>
-#include <filesystem>
-
 #include "file-utils.hpp"
+#include "imgui.h"
 #include "mls/serializer.hpp"
 
-#include "imgui.h"
+#include <filesystem>
+#include <platform_folders.h>
+#include <string>
+#include <vector>
 
 struct Configs
 {
-	std::vector<std::string> recentProjects;
-	bool autoLoadLastProject{};
+    std::vector<std::string> recentProjects;
+    bool autoLoadLastProject{};
 
-	bool needOpenMenu{};
+    bool needOpenMenu{};
 
-	static std::string getConfigFilePath();
+    static std::string getConfigFilePath();
 
-	void loadFromFile();
-	void saveToFile();
+    void loadFromFile();
+    void saveToFile();
 
-	void openMenu();
-	void showMenu();
-
+    void openMenu();
+    void showMenu();
 };
 
 void serialize(Serializer& s, Configs& configs);

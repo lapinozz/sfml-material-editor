@@ -1,50 +1,40 @@
 #pragma once
 
-#include <array>
-
 #include "../value.hpp"
 #include "nodes/expression.hpp"
 
+#include <array>
+
 struct ConstantNode : ExpressionNode
 {
-	using ExpressionNode::ExpressionNode;
+    using ExpressionNode::ExpressionNode;
 
-	ValueType type;
-	std::array<FloatField, 4> floatFields;
+    ValueType type;
+    std::array<FloatField, 4> floatFields;
 
-	ConstantNode(NodeArchetype* archetype, ValueType type) : ExpressionNode{ archetype }, type{ type }
-	{
+    ConstantNode(NodeArchetype* archetype, ValueType type) : ExpressionNode{archetype}, type{type}
+    {
+    }
 
-	}
+    void evaluate(CodeGenerator& generator) override
+    {
+        //setOutput(0, Value{ type, input });
+    }
 
-	void evaluate(CodeGenerator& generator) override
-	{
-		//setOutput(0, Value{ type, input });
-	}
+    void drawMiddle() override
+    {
+        floatFields[0].update();
+    }
 
-	void drawMiddle() override
-	{
-		floatFields[0].update();
-	}
+    void serialize(Serializer& s) override
+    {
+        ExpressionNode::serialize(s);
 
-	void serialize(Serializer& s) override
-	{
-		ExpressionNode::serialize(s);
+        s.serialize("fields", floatFields);
+    }
 
-		s.serialize("fields", floatFields);
-	}
-
-	static void registerArchetypes(ArchetypeRepo& repo)
-	{
-		repo.add<ConstantNode>({
-			"Constants",
-			"const_float",
-			"Float",
-			{
-			},
-			{
-				{ "", Types::scalar}
-			}
-		}, Types::scalar);
-	}
+    static void registerArchetypes(ArchetypeRepo& repo)
+    {
+        repo.add<ConstantNode>({"Constants", "const_float", "Float", {}, {{"", Types::scalar}}}, Types::scalar);
+    }
 };

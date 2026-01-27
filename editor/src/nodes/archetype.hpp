@@ -1,46 +1,46 @@
 #pragma once
 
-#include <string>
-#include <functional>
-
-#include "graph.hpp"
 #include "../value.hpp"
+#include "graph.hpp"
+
+#include <functional>
+#include <string>
 
 struct NodeArchetype
 {
-	std::string category;
-	std::string id;
-	std::string title;
+    std::string category;
+    std::string id;
+    std::string title;
 
-	struct Input
-	{
-		std::string name;
-		ValueType type;
+    struct Input
+    {
+        std::string name;
+        ValueType type;
 
-		bool requireLink = false;
-		bool showField = true;
-	};
+        bool requireLink = false;
+        bool showField = true;
+    };
 
-	struct Output
-	{
-		std::string name;
-		ValueType type;
-	};
+    struct Output
+    {
+        std::string name;
+        ValueType type;
+    };
 
-	std::vector<Input> inputs;
-	std::vector<Output> outputs;
+    std::vector<Input> inputs;
+    std::vector<Output> outputs;
 
-	struct Overload
-	{
-		std::vector<ValueType> inputs;
-		std::vector<ValueType> outputs;
-	};
+    struct Overload
+    {
+        std::vector<ValueType> inputs;
+        std::vector<ValueType> outputs;
+    };
 
-	std::vector<Overload> overloads;
+    std::vector<Overload> overloads;
 
-	std::function<Graph::Node::Ptr()> createNode;
+    std::function<Graph::Node::Ptr()> createNode;
 
-	/*
+    /*
 	static std::optional<std::pair<PinId, PinId>> findConnectTarget(const NodeArchetype& out, const NodeArchetype& in)
 	{
 		const auto& canTarget = [&](ValueType outType, ValueType inType)

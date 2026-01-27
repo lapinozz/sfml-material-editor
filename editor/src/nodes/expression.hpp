@@ -1,9 +1,9 @@
 #pragma once
 
-#include "value.hpp"
-#include "float-field.hpp"
-#include "archetype.hpp"
 #include "../constants.hpp"
+#include "archetype.hpp"
+#include "float-field.hpp"
+#include "value.hpp"
 
 struct CodeGenerator;
 struct NodeArchetype;
@@ -11,282 +11,281 @@ struct NodeArchetype;
 using ParameterTypeMap = std::unordered_map<std::string, ValueType>;
 struct GraphContext
 {
-	ParameterTypeMap parameterTypes;
+    ParameterTypeMap parameterTypes;
 };
 
 struct ExpressionNode : Graph::Node
 {
-	NodeArchetype* archetype;
-	GraphContext* graphContext{};
-
-	std::string error;
-
-	struct Input : public NodeArchetype::Input
-	{
-		std::string error;
-		Value value;
-
-		LinkId link{ 0 };
-
-		ValueField field;
-
-		bool hasError() const
-		{
-			return error.size() > 0;
-		}
-	};
+    NodeArchetype* archetype;
+    GraphContext* graphContext{};
+
+    std::string error;
+
+    struct Input : public NodeArchetype::Input
+    {
+        std::string error;
+        Value value;
+
+        LinkId link{0};
+
+        ValueField field;
+
+        bool hasError() const
+        {
+            return error.size() > 0;
+        }
+    };
+
+    struct Output : public NodeArchetype::Output
+    {
+        Value value;
+
+        int linkCount{};
+    };
+
+    std::vector<Input> inputs;
+    std::vector<Output> outputs;
+
+    using Ptr = std::unique_ptr<ExpressionNode>;
+
+    ExpressionNode(struct NodeArchetype* archetype) :
+        archetype{archetype},
+        inputs{archetype->inputs.begin(), archetype->inputs.end()},
+        outputs{archetype->outputs.begin(), archetype->outputs.end()}
+    {
+    }
+
+    Value getInput(uint8_t index) const
+    {
+        return inputs.at(index).value;
+    }
 
-	struct Output : public NodeArchetype::Output
-	{
-		Value value;
+    void setOutput(uint8_t index, const Value& value)
+    {
+        outputs.at(index).value = value;
+    }
 
-		int linkCount{};
-	};
+    void setOutput(uint8_t index, Value&& value)
+    {
+        outputs.at(index).value = std::move(value);
+    }
 
-	std::vector<Input> inputs;
-	std::vector<Output> outputs;
+    virtual void serialize(Serializer& s)
+    {
+        s.serialize("id", id);
 
-	using Ptr = std::unique_ptr<ExpressionNode>;
+        using namespace std::placeholders;
+        s.at("pos").serializeValue<ImVec2>(std::bind(ed::GetNodePosition, id), std::bind(ed::SetNodePosition, id, _1));
 
-	ExpressionNode(struct NodeArchetype* archetype) : archetype{ archetype }, 
-													  inputs{ archetype->inputs.begin(), archetype->inputs.end() }, 
-													  outputs{ archetype->outputs.begin(), archetype->outputs.end() }
-	{
+        std::vector<ValueField> fields;
 
-	}
+        if (s.isSaving)
+        {
+            fields.reserve(inputs.size());
+            for (auto& input : inputs)
+            {
+                fields.push_back(input.field);
+            }
+        }
 
-	Value getInput(uint8_t index) const
-	{
-		return inputs.at(index).value;
-	}
+        s.serialize("input_fields", fields);
 
-	void setOutput(uint8_t index, const Value& value)
-	{
-		outputs.at(index).value = value;
-	}
+        if (!s.isSaving)
+        {
+            for (size_t x{}; x < inputs.size() && x < fields.size(); x++)
+            {
+                inputs[x].field = fields[x];
+            }
+        }
+    }
 
-	void setOutput(uint8_t index, Value&& value)
-	{
-		outputs.at(index).value = std::move(value);
-	}
+    virtual void update(GraphContext* inGraphContext)
+    {
+        graphContext = inGraphContext;
 
-	virtual void serialize(Serializer& s)
-	{
-		s.serialize("id", id);
+        error = {};
 
-		using namespace std::placeholders;
-		s.at("pos").serializeValue<ImVec2>(std::bind(ed::GetNodePosition, id), std::bind(ed::SetNodePosition, id, _1));
+        for (std::size_t x{}; x < inputs.size(); x++)
+        {
+            inputs[x].link = {};
+            inputs[x].value = {};
+            inputs[x].error = {};
+        }
+        for (std::size_t x{}; x < outputs.size(); x++)
+        {
+            outputs[x].linkCount = {};
+            outputs[x].value = {};
+        }
+    }
 
-		std::vector<ValueField> fields;
+    virtual void evaluate(CodeGenerator& generator) = 0;
 
-		if (s.isSaving)
-		{
-			fields.reserve(inputs.size());
-			for (auto& input : inputs)
-			{
-				fields.push_back(input.field);
-			}
-		}
+    virtual void draw()
+    {
+        ImGui::PushID(id.Get());
 
-		s.serialize("input_fields", fields);
+        ed::PushStyleVar(ed::StyleVar_NodePadding, ImVec4(8, 4, 8, 8));
 
-		if (!s.isSaving)
-		{
-			for (size_t x{}; x < inputs.size() && x < fields.size(); x++)
-			{
-				inputs[x].field = fields[x];
-			}
-		}
-	}
+        ed::BeginNode(id);
 
-	virtual void update(GraphContext* inGraphContext)
-	{
-		graphContext = inGraphContext;
+        ImGui::BeginVertical("node");
 
-		error = {};
+        drawHeader();
+        const auto HeaderMin = ImGui::GetItemRectMin();
+        const auto HeaderMax = ImGui::GetItemRectMax();
 
-		for (std::size_t x{}; x < inputs.size(); x++)
-		{
-			inputs[x].link = {};
-			inputs[x].value = {};
-			inputs[x].error = {};
-		}
-		for (std::size_t x{}; x < outputs.size(); x++)
-		{
-			outputs[x].linkCount = {};
-			outputs[x].value = {};
-		}
-	}
+        ImGui::BeginHorizontal("content");
 
-	virtual void evaluate(CodeGenerator& generator) = 0;
+        ImGui::BeginVertical("inputs");
+        drawInputPins();
+        ImGui::Spring(1, 0);
+        ImGui::EndVertical();
 
-	virtual void draw()
-	{
-		ImGui::PushID(id.Get());
+        ImGui::Spring(1, 0);
 
-		ed::PushStyleVar(ed::StyleVar_NodePadding, ImVec4(8, 4, 8, 8));
+        ImGui::BeginVertical("middle", ImVec2(0, 0), 0.5);
+        drawMiddle();
+        ImGui::Spring(1, 0);
+        ImGui::EndVertical();
 
-		ed::BeginNode(id);
+        ImGui::Spring(1, 0);
 
-		ImGui::BeginVertical("node");
+        ImGui::BeginVertical("outputs", ImVec2(0, 0), 1);
+        drawOutputPins();
+        ImGui::Spring(1, 0);
+        ImGui::EndVertical();
 
-		drawHeader();
-		const auto HeaderMin = ImGui::GetItemRectMin();
-		const auto HeaderMax = ImGui::GetItemRectMax();
+        ImGui::EndHorizontal();
 
-		ImGui::BeginHorizontal("content");
+        ImGui::EndVertical();
 
-		ImGui::BeginVertical("inputs");
-		drawInputPins();
-		ImGui::Spring(1, 0);
-		ImGui::EndVertical();
+        ed::EndNode();
 
-		ImGui::Spring(1, 0);
+        if (ImGui::IsItemVisible())
+        {
+            auto alpha = static_cast<int>(255 * ImGui::GetStyle().Alpha);
 
-		ImGui::BeginVertical("middle", ImVec2(0, 0), 0.5);
-		drawMiddle();
-		ImGui::Spring(1, 0);
-		ImGui::EndVertical();
+            auto drawList = ed::GetNodeBackgroundDrawList(id);
 
-		ImGui::Spring(1, 0);
+            const auto halfBorderWidth = ed::GetStyle().NodeBorderWidth * 0.5f;
 
-		ImGui::BeginVertical("outputs", ImVec2(0, 0), 1);
-		drawOutputPins();
-		ImGui::Spring(1, 0);
-		ImGui::EndVertical();
+            auto HeaderColor = IM_COL32(255 / 3, 255 / 3, 0, 0);
 
-		ImGui::EndHorizontal();
+            auto headerColor = IM_COL32(0, 0, 0, alpha) | (HeaderColor & IM_COL32(255, 255, 255, 0));
 
-		ImGui::EndVertical();
+            if ((HeaderMax.x > HeaderMin.x) && (HeaderMax.y > HeaderMin.y))
+            {
+                const auto uv = ImVec2(0, 0);
 
-		ed::EndNode();
-
-		if (ImGui::IsItemVisible())
-		{
-			auto alpha = static_cast<int>(255 * ImGui::GetStyle().Alpha);
-
-			auto drawList = ed::GetNodeBackgroundDrawList(id);
-
-			const auto halfBorderWidth = ed::GetStyle().NodeBorderWidth * 0.5f;
-
-			auto HeaderColor = IM_COL32(255 / 3, 255 / 3, 0, 0);
-
-			auto headerColor = IM_COL32(0, 0, 0, alpha) | (HeaderColor & IM_COL32(255, 255, 255, 0));
-
-			if ((HeaderMax.x > HeaderMin.x) && (HeaderMax.y > HeaderMin.y))
-			{
-				const auto uv = ImVec2(0, 0);
-
-				drawList->AddImageRounded(0,
-					HeaderMin - ImVec2(8 - halfBorderWidth - 0.2f, 4 - halfBorderWidth - 0.2f),
-					HeaderMax + ImVec2(8 - halfBorderWidth - 0.2f, 0.2f),
-					ImVec2(0.0f, 0.0f), uv,
-					headerColor, ed::GetStyle().NodeRounding, ImDrawFlags_RoundCornersTop);
-
-
-				drawList->AddLine(
-					ImVec2(HeaderMin.x - (8 - halfBorderWidth) + 0, HeaderMax.y + 0.35f),
-					ImVec2(HeaderMax.x + (8 - halfBorderWidth) - 1, HeaderMax.y + 0.35f),
-					ImGui::ColorConvertFloat4ToU32(ed::GetStyle().Colors[ax::NodeEditor::StyleColor_NodeBorder]), ed::GetStyle().NodeBorderWidth);
-			}
-		}
-
-		ed::PopStyleVar(0);
-
-		ImGui::PopID();
-	}
-
-	virtual void drawHeader()
-	{
-		ImGui::BeginHorizontal("title");
-		ImGui::BeginVertical("title_");
-		ImGui::Text(archetype->title.c_str());
-		ImGui::Dummy({ 0, -2 });
-		ImGui::EndVertical();
-		ImGui::EndHorizontal();
-	};
-
-	virtual void drawInputPins()
-	{
-		for (PinId::PinIndex x{}; x < inputs.size(); x++)
-		{
-			auto& input = inputs[x];
-			const auto pinId = id.makeInput(x);
-			ed::BeginPin(pinId, ed::PinKind::Input);
-			drawInputPin(input, pinId);
-			ed::EndPin();
-		}
-	};
-
-	virtual void drawInputPin(Input& input, PinId id)
-	{
-		ed::PinPivotAlignment(ImVec2(0.f, 0.5f));
-		ed::PinPivotSize(ImVec2(0, 0));
-
-		ImDrawList* draw_list = ImGui::GetWindowDrawList();
-		ImVec2 p = ImGui::GetCursorScreenPos();
-		float size = 5.f;
-		auto textSize = ImGui::CalcTextSize("In");
-
-		const auto hasError = input.error.size() > 0;
-
-		if (input.link || hasError)
-		{
-			draw_list->AddCircleFilled(ImVec2(p.x + size, p.y + textSize.y / 2.f), size, hasError ? LinkColorError : LinkColor);
-		}
-
-		const auto color = input.type ? input.type.toColor() : input.value.type.toColor();
-
-		draw_list->AddCircle(ImVec2(p.x + size, p.y + textSize.y / 2.f), size, color, 0, 2.f);
-		ImGui::Dummy(ImVec2(size, size));
-
-		ImGui::SameLine();
-		ImGui::Text(input.name.c_str());
-
-		if (!input.link)
-		{
-			ImGui::SameLine();
-
-			if (input.showField && (input.type.isScalar() || input.type.isVector()))
-			{
-				input.field.update(input.type);
-			}
-		}
-	};
-
-	virtual void drawOutputPins()
-	{
-		for (PinId::PinIndex x{}; x < outputs.size(); x++)
-		{
-			//ImGui::Spring(0, 0);
-			const auto& output = outputs[x];
-			const auto pinId = id.makeOutput(x);
-			ed::BeginPin(pinId, ed::PinKind::Output);
-			drawOutputPin(output, pinId);
-			ed::EndPin();
-
-		}
-	};
-
-	virtual void drawOutputPin(const Output& output, PinId id)
-	{
-		ed::PinPivotAlignment(ImVec2(1.f, 0.5f));
-		ed::PinPivotSize(ImVec2(0, 0));
-
-		ImGui::Text(output.name.c_str());
-		ImGui::SameLine();
-		float size = 5.f;
-
-		ImDrawList* draw_list = ImGui::GetWindowDrawList();
-		ImVec2 p = ImGui::GetCursorScreenPos();
-		auto textSize = ImGui::CalcTextSize("In");
-		const auto color = output.linkCount ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
-		draw_list->AddCircleFilled(ImVec2(p.x + size, p.y + textSize.y / 2.f), size, output.type.toColor());
-		ImGui::Dummy(ImVec2(size * 2.f, size));
-	};
-
-	virtual void drawMiddle()
-	{
-	};
-
+                drawList->AddImageRounded(0,
+                                          HeaderMin - ImVec2(8 - halfBorderWidth - 0.2f, 4 - halfBorderWidth - 0.2f),
+                                          HeaderMax + ImVec2(8 - halfBorderWidth - 0.2f, 0.2f),
+                                          ImVec2(0.0f, 0.0f),
+                                          uv,
+                                          headerColor,
+                                          ed::GetStyle().NodeRounding,
+                                          ImDrawFlags_RoundCornersTop);
+
+
+                drawList->AddLine(ImVec2(HeaderMin.x - (8 - halfBorderWidth) + 0, HeaderMax.y + 0.35f),
+                                  ImVec2(HeaderMax.x + (8 - halfBorderWidth) - 1, HeaderMax.y + 0.35f),
+                                  ImGui::ColorConvertFloat4ToU32(ed::GetStyle().Colors[ax::NodeEditor::StyleColor_NodeBorder]),
+                                  ed::GetStyle().NodeBorderWidth);
+            }
+        }
+
+        ed::PopStyleVar(0);
+
+        ImGui::PopID();
+    }
+
+    virtual void drawHeader()
+    {
+        ImGui::BeginHorizontal("title");
+        ImGui::BeginVertical("title_");
+        ImGui::Text(archetype->title.c_str());
+        ImGui::Dummy({0, -2});
+        ImGui::EndVertical();
+        ImGui::EndHorizontal();
+    };
+
+    virtual void drawInputPins()
+    {
+        for (PinId::PinIndex x{}; x < inputs.size(); x++)
+        {
+            auto& input = inputs[x];
+            const auto pinId = id.makeInput(x);
+            ed::BeginPin(pinId, ed::PinKind::Input);
+            drawInputPin(input, pinId);
+            ed::EndPin();
+        }
+    };
+
+    virtual void drawInputPin(Input& input, PinId id)
+    {
+        ed::PinPivotAlignment(ImVec2(0.f, 0.5f));
+        ed::PinPivotSize(ImVec2(0, 0));
+
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        float size = 5.f;
+        auto textSize = ImGui::CalcTextSize("In");
+
+        const auto hasError = input.error.size() > 0;
+
+        if (input.link || hasError)
+        {
+            draw_list->AddCircleFilled(ImVec2(p.x + size, p.y + textSize.y / 2.f), size, hasError ? LinkColorError : LinkColor);
+        }
+
+        const auto color = input.type ? input.type.toColor() : input.value.type.toColor();
+
+        draw_list->AddCircle(ImVec2(p.x + size, p.y + textSize.y / 2.f), size, color, 0, 2.f);
+        ImGui::Dummy(ImVec2(size, size));
+
+        ImGui::SameLine();
+        ImGui::Text(input.name.c_str());
+
+        if (!input.link)
+        {
+            ImGui::SameLine();
+
+            if (input.showField && (input.type.isScalar() || input.type.isVector()))
+            {
+                input.field.update(input.type);
+            }
+        }
+    };
+
+    virtual void drawOutputPins()
+    {
+        for (PinId::PinIndex x{}; x < outputs.size(); x++)
+        {
+            //ImGui::Spring(0, 0);
+            const auto& output = outputs[x];
+            const auto pinId = id.makeOutput(x);
+            ed::BeginPin(pinId, ed::PinKind::Output);
+            drawOutputPin(output, pinId);
+            ed::EndPin();
+        }
+    };
+
+    virtual void drawOutputPin(const Output& output, PinId id)
+    {
+        ed::PinPivotAlignment(ImVec2(1.f, 0.5f));
+        ed::PinPivotSize(ImVec2(0, 0));
+
+        ImGui::Text(output.name.c_str());
+        ImGui::SameLine();
+        float size = 5.f;
+
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        auto textSize = ImGui::CalcTextSize("In");
+        const auto color = output.linkCount ? IM_COL32(0, 255, 0, 255) : IM_COL32(255, 0, 0, 255);
+        draw_list->AddCircleFilled(ImVec2(p.x + size, p.y + textSize.y / 2.f), size, output.type.toColor());
+        ImGui::Dummy(ImVec2(size * 2.f, size));
+    };
+
+    virtual void drawMiddle(){};
 };

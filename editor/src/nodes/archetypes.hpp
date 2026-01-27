@@ -1,87 +1,90 @@
 #pragma once
 
-#include <unordered_map>
-
-#include "mls/serializer.hpp"
 #include "archetype.hpp"
 #include "expression.hpp"
+#include "mls/serializer.hpp"
+
+#include <unordered_map>
 
 struct ArchetypeRepo
 {
-	ArchetypeRepo() = default;
-	ArchetypeRepo(ArchetypeRepo&&) = default;
-	ArchetypeRepo(const ArchetypeRepo&) = delete;
+    ArchetypeRepo() = default;
+    ArchetypeRepo(ArchetypeRepo&&) = default;
+    ArchetypeRepo(const ArchetypeRepo&) = delete;
 
-	std::unordered_map<std::string, NodeArchetype> archetypes;
+    std::unordered_map<std::string, NodeArchetype> archetypes;
 
-	const NodeArchetype& get(const std::string& id)
-	{
-		return archetypes[id];
-	}
+    const NodeArchetype& get(const std::string& id)
+    {
+        return archetypes[id];
+    }
 
-	template<typename T, typename...Args>
-	const NodeArchetype& add(NodeArchetype archetype, Args...args)
-	{
-		auto& arch = archetypes.emplace(archetype.id, std::move(archetype)).first->second;
-		auto archetypeRawPtr = &arch;
-		arch.createNode = [=]() { return std::make_unique<T>(archetypeRawPtr, args...); };
+    template <typename T, typename... Args>
+    const NodeArchetype& add(NodeArchetype archetype, Args... args)
+    {
+        auto& arch = archetypes.emplace(archetype.id, std::move(archetype)).first->second;
+        auto archetypeRawPtr = &arch;
+        arch.createNode = [=]()
+        {
+            return std::make_unique<T>(archetypeRawPtr, args...);
+        };
 
-		return arch;
-	}
+        return arch;
+    }
 };
 
 struct NodeSerializer
 {
-	static inline ArchetypeRepo* repo{};
+    static inline ArchetypeRepo* repo{};
 
-	static void serialize(Serializer& s, Graph::Node* n)
-	{
-		assert(repo);
+    static void serialize(Serializer& s, Graph::Node* n)
+    {
+        assert(repo);
 
-		if (s.isSaving)
-		{
-			if (!n)
-			{
-				return;
-			}
+        if (s.isSaving)
+        {
+            if (!n)
+            {
+                return;
+            }
 
-			auto& node = static_cast<ExpressionNode&>(*n);
-			s.serialize("type_id", node.archetype->id);
-			node.serialize(s);
-		}
-		else
-		{
-			assert(false && "not supported");
-		}
-	}
+            auto& node = static_cast<ExpressionNode&>(*n);
+            s.serialize("type_id", node.archetype->id);
+            node.serialize(s);
+        }
+        else
+        {
+            assert(false && "not supported");
+        }
+    }
 
-	static void serialize(Serializer& s, Graph::Node::Ptr& n)
-	{
-		assert(repo);
+    static void serialize(Serializer& s, Graph::Node::Ptr& n)
+    {
+        assert(repo);
 
-		if (s.isSaving)
-		{
-			serialize(s, n.get());
-		}
-		else
-		{
-			std::string typeId;
-			s.serialize("type_id", typeId);
+        if (s.isSaving)
+        {
+            serialize(s, n.get());
+        }
+        else
+        {
+            std::string typeId;
+            s.serialize("type_id", typeId);
 
-			n = repo->get(typeId).createNode();
+            n = repo->get(typeId).createNode();
 
-			auto& node = static_cast<ExpressionNode&>(*n);
-			node.serialize(s);
-		}
-	}
+            auto& node = static_cast<ExpressionNode&>(*n);
+            node.serialize(s);
+        }
+    }
 };
 
 inline void serialize(Serializer& s, Graph::Node::Ptr& n)
 {
-	NodeSerializer::serialize(s, n);
+    NodeSerializer::serialize(s, n);
 }
 
 inline void serialize(Serializer& s, Graph::Node* n)
 {
-	NodeSerializer::serialize(s, n);
+    NodeSerializer::serialize(s, n);
 }
