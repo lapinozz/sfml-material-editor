@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22.6)
-project(CMakeSFMLProject LANGUAGES CXX)
+project(MLSE LANGUAGES CXX)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
@@ -52,7 +52,7 @@ set(IMNOED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/deps/imgui-node-editor")
 
 file( GLOB_RECURSE SRCS ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/src/*.hpp )
 
-add_executable(CMakeSFMLProject 
+add_executable(MLSE 
     ${SRCS}
     "${IMNOED_DIR}/imgui_canvas.cpp" 
     "${IMNOED_DIR}/crude_json.cpp" 
@@ -61,26 +61,26 @@ add_executable(CMakeSFMLProject
     "${CMAKE_CURRENT_SOURCE_DIR}/deps/ImGuiColorTextEdit/TextEditor.cpp"
 )
 
-target_include_directories(CMakeSFMLProject PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_include_directories(CMakeSFMLProject PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/deps/)
+target_include_directories(MLSE PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+target_include_directories(MLSE PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/deps/)
 
-target_include_directories(CMakeSFMLProject PRIVATE "${IMNOED_DIR}")
+target_include_directories(MLSE PRIVATE "${IMNOED_DIR}")
 
-target_link_libraries(CMakeSFMLProject PRIVATE  ImGui-SFML::ImGui-SFML 
+target_link_libraries(MLSE PRIVATE  ImGui-SFML::ImGui-SFML 
                                                 nfd::nfd nvdialog 
                                                 sago::platform_folders
                                                 MLS::MLS)
 
-target_compile_definitions(CMakeSFMLProject PUBLIC IMGUI_DEFINE_MATH_OPERATORS)
-target_compile_features(CMakeSFMLProject PRIVATE cxx_std_23)
+target_compile_definitions(MLSE PUBLIC IMGUI_DEFINE_MATH_OPERATORS)
+target_compile_features(MLSE PRIVATE cxx_std_23)
 
 #if (MSVC AND WIN32 AND NOT MSVC_VERSION VERSION_LESS 142)
-#    target_link_options(CMakeSFMLProject PRIVATE $<$<CONFIG:Debug>:/INCREMENTAL>)
-#    target_compile_options(CMakeSFMLProject PRIVATE $<$<CONFIG:Debug>:/ZI>)
+#    target_link_options(MLSE PRIVATE $<$<CONFIG:Debug>:/INCREMENTAL>)
+#    target_compile_options(MLSE PRIVATE $<$<CONFIG:Debug>:/ZI>)
 #endif()
     
 set_target_properties(
-    CMakeSFMLProject PROPERTIES
-    VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:CMakeSFMLProject>)
+    MLSE PROPERTIES
+    VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:MLSE>)
 
-install(TARGETS CMakeSFMLProject)
+install(TARGETS MLSE)
