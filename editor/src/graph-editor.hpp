@@ -237,7 +237,7 @@ struct GraphEditor
 
                 if (ImGui::GetIO().KeyCtrl)
                 {
-                    graph.removeLinks(inputPinId);
+                    graph.removeLink(LinkId(inputPinId, outputPinId));
                 }
 
                 auto* inputBridge = inputPinId ? graph.findNode<BridgeNode>(inputPinId.nodeId()) : nullptr;
