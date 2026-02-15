@@ -53,7 +53,9 @@ struct BinaryOpNode : ExpressionNode
         const auto& a = getInput(0);
         const auto& b = getInput(1);
 
-        setOutput(0, Value{outputs.at(0).type, a.code + " " + operatorStrings[std::to_underlying(op)] + " " + b.code});
+        const auto val = std::format("({} {} {})", a.code, operatorStrings[std::to_underlying(op)], b.code);
+
+        setOutput(0, Value{outputs.at(0).type, val});
     }
 
     void serialize(Serializer& s) override
