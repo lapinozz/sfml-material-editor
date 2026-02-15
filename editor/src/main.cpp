@@ -7,5 +7,5 @@ int main()
     {
         editor.update();
     }
-    ImGui::SFML::Shutdown();
+    ImGui::SFML::Shutdown(); 
 }
