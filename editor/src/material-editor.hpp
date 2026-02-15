@@ -42,6 +42,8 @@
 #include "nodes/scalar-value.hpp"
 #include "nodes/texture-sample.hpp"
 #include "nodes/vec-value.hpp"
+#include "nodes/random.hpp"
+#include "nodes/code.hpp"
 #include "preview.hpp"
 #include "shortcuts.hpp"
 #include "value.hpp"
@@ -79,7 +81,9 @@ struct ProjectEditor
     MapListBoxData materialsListBox;
     MapListBoxData texturesListBox;
 
+    std::string vertexEditorString;
     TextEditor vertexEditor;
+    std::string fragmentEditorString;
     TextEditor fragmentEditor;
 
     sf::Clock clock;
@@ -193,6 +197,8 @@ struct ProjectEditor
         AppendNode::registerArchetypes(archetypes);
         ParameterNode::registerArchetypes(archetypes);
         SampleTextureNode::registerArchetypes(archetypes);
+        RandomNode::registerArchetypes(archetypes);
+        CodeNode::registerArchetypes(archetypes);
 
         NodeSerializer::repo = &archetypes;
     }
@@ -551,11 +557,21 @@ struct ProjectEditor
     {
         if (auto* tab = getCurrentTab())
         {
+            tab->materialInstance->setValue("time", runningTime);
             tab->update(textureReferences);
             tab->draw();
 
-            vertexEditor.SetText(tab->vertexCode);
-            fragmentEditor.SetText(tab->fragmentCode);
+            if (vertexEditorString != tab->vertexCode)
+            {
+                vertexEditorString = tab->vertexCode;
+                vertexEditor.SetText(tab->vertexCode);
+            }
+
+            if (fragmentEditorString != tab->fragmentCode)
+            {
+                fragmentEditorString = tab->fragmentCode;
+                fragmentEditor.SetText(tab->fragmentCode);
+            }
         }
         else
         {
