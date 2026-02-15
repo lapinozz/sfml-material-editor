@@ -305,8 +305,6 @@ struct MaterialTab
 
             materialTemplate.setSource(vertexCode, fragmentCode);
         }
-
-        //materialInstance->setValue("time", runningTime);
     }
 };
 
