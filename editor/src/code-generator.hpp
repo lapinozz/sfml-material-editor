@@ -20,7 +20,57 @@ struct CodeGenerator
     Graph& graph;
     Type type;
 
+    static constexpr auto functionPrefix = "mlsf_";
+
+    struct Param
+    {
+        std::string id;
+        ValueType type{Types::scalar};
+        bool isOut{};
+
+        bool operator==(const Param&) const = default;
+    };
+
+    struct Function
+    {
+        std::string id;
+        ValueType returnType{Types::scalar};
+        std::vector<Param> params;
+        std::vector<std::string> body;
+
+        bool operator==(const Function&) const = default;
+
+        std::string makeSignature() const
+        {
+            std::string result;
+            const auto returnTypeString = returnType == Types::none ? "void" : returnType.toString();
+            result += std::format("{} {}{}(", returnTypeString, functionPrefix, id);
+
+            for (std::size_t x = 0; x < params.size(); x++)
+            {
+                if (x > 0)
+                {
+                    result += ", ";
+                }
+
+                const auto& param = params[x];
+
+                if (param.isOut)
+                {
+                    result += "out ";
+                }
+
+                result += std::format("{} {}", param.type.toString(), param.id);
+            }
+
+            result += ")";
+
+            return result;
+        }
+    };
+
     std::unordered_map<std::string, ValueType> shaderInputs;
+    std::unordered_map<std::string, Function> functions;
     std::vector<std::string> body;
 
     std::unordered_map<PinId, Value> cachedValues;
@@ -177,7 +227,8 @@ struct CodeGenerator
 
             if (output.value)
             {
-                if (output.linkCount > 1 || output.value.code.size() >= ExpressionVariableLengthCutoff)
+                if (output.value.type != Types::texture &&
+                    (output.linkCount > 1 || output.value.code.size() >= ExpressionVariableLengthCutoff))
                 {
                     setAsVar(node.id.makeOutput(outputIndex), output.value);
                 }
@@ -239,7 +290,7 @@ struct CodeGenerator
         return Values::null;
     }
 
-    void set(PinId pin, const Value& value)
+    void set(PinId pin, Value value)
     {
         cachedValues[pin] = std::move(value);
     }
@@ -256,16 +307,87 @@ struct CodeGenerator
         return {value.type, std::move(varName)};
     }
 
+    Value addEmptyVar(const ValueType& type)
+    {
+        std::string varName = "var" + std::to_string(nextVar++);
+        body.push_back(type.toString() + " " + varName + ";");
+        return {type, std::move(varName)};
+    }
+
+    void addFunc(const Function& function)
+    {
+        auto it = functions.find(function.id);
+        if (it != functions.end())
+        {
+            assert(it->second == function);
+        }
+        else
+        {
+            functions[function.id] = function;
+        }
+    }
+
+    Value callFunc(const std::string& id, std::vector<Value> params)
+    {
+        auto it = functions.find(id);
+        assert(it != functions.end());
+
+        const auto& function = it->second;
+        assert(params.size() == function.params.size());
+
+        std::string out = functionPrefix + id + "(";
+        for (std::size_t x = 0; x < params.size(); x++)
+        {
+            assert(params[x].type == function.params[x].type);
+
+            if (x > 0)
+            {
+                out += ", ";
+            }
+
+            out += params[x].code;
+        }
+
+        out += ")";
+
+        if (function.returnType)
+        {
+            return {function.returnType, out};
+        }
+        else
+        {
+            body.push_back(out + ";");
+            return {};
+        }
+    }
+
     std::string finalize() const
     {
         std::string code;
 
-        code += "#version 120\n";
+        code += "#version 120\n\n";
 
         for (const auto& [name, type] : shaderInputs)
         {
             code += std::format("uniform {} {};\n", type.toString(), name);
         }
+
+        code += "\n";
+        code += "\n";
+
+        for (const auto& [name, func] : functions)
+        {
+            code += std::format("{}\n{{\n", func.makeSignature());
+
+            for (const auto& line : func.body)
+            {
+                code += std::format("\t{}\n", line);
+            }
+
+            code += "}\n\n";
+        }
+
+        code += "\n";
 
         code += "void main()\n{\n";
         for (const auto& str : body)
@@ -279,3 +401,18 @@ struct CodeGenerator
         return code;
     }
 };
+
+void serialize(Serializer& s, CodeGenerator::Param& param)
+{
+    s.serialize("id", param.id);
+    s.serialize("type", param.type);
+    s.serialize("isOut", param.isOut);
+}
+
+void serialize(Serializer& s, CodeGenerator::Function& function)
+{
+    s.serialize("id", function.id);
+    s.serialize("body", function.body);
+    s.serialize("params", function.params);
+    s.serialize("returnType", function.returnType);
+}
