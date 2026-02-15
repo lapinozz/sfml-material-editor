@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mls_export.h"
 #include "serializer.hpp"
 #include "sfml-serialization.hpp"
 
@@ -15,7 +16,7 @@
 using Vector4f = sf::Glsl::Vec4; //std::array<float, 4>;
 using ParameterValue = std::variant<float, sf::Vector2f, sf::Vector3f, Vector4f, const sf::Texture*>;
 
-enum class ParamterType
+enum class MLS_EXPORT ParamterType
 {
     Float,
     Vec2,
@@ -24,12 +25,12 @@ enum class ParamterType
     Texture
 };
 
-struct Parameter
+struct MLS_EXPORT Parameter
 {
     ParameterValue defaultValue;
 };
 
-struct MaterialTemplate
+struct MLS_EXPORT MaterialTemplate
 {
     std::unordered_map<std::string, Parameter> parameters;
 
@@ -47,16 +48,16 @@ struct MaterialTemplate
     void setParameterDefault(const std::string& name, ParameterValue param);
 };
 
-struct MaterialGraph : public MaterialTemplate
+struct MLS_EXPORT MaterialGraph : public MaterialTemplate
 {
 };
 
-struct Project
+struct MLS_EXPORT Project
 {
     std::unordered_map<std::string, MaterialTemplate> materialDefinitions;
 };
 
-class Material
+class MLS_EXPORT Material
 {
 private:
     MaterialTemplate* materialTemplate{};
@@ -76,6 +77,9 @@ private:
     void updateParameters();
 
 public:
+    static constexpr std::string_view uniformPrefix = "P_";
+    static constexpr std::string_view textureUniformSizeSuffix = "_texSize";
+
     using Ptr = std::unique_ptr<Material>;
 
     Material(MaterialTemplate& matTemplate) : materialTemplate{&matTemplate}
@@ -98,7 +102,7 @@ public:
     friend MaterialTemplate;
 };
 
-struct TextureReference
+struct MLS_EXPORT TextureReference
 {
     enum class Type
     {
@@ -114,10 +118,10 @@ struct TextureReference
 };
 using TextureReferences = std::vector<TextureReference>;
 
-sf::Texture defaultTextureLoader(const TextureReference& textureReference);
+MLS_EXPORT sf::Texture defaultTextureLoader(const TextureReference& textureReference);
 using TextureLoadingCallback = std::function<const sf::Texture*(const TextureReference&)>;
 
-class MaterialRepo
+class MLS_EXPORT MaterialRepo
 {
 public:
     std::vector<sf::Texture> ownedTextures;
@@ -133,12 +137,12 @@ public:
                                                     const TextureLoadingCallback& textureLoadingCallback = {});
 };
 
-inline void serialize(Serializer& s, Parameter& p)
+inline MLS_EXPORT void serialize(Serializer& s, Parameter& p)
 {
     s.serialize("defaultValue", p.defaultValue);
 }
 
-inline void serialize(Serializer& s, TextureReference& tr)
+inline MLS_EXPORT void serialize(Serializer& s, TextureReference& tr)
 {
     s.serialize("id", tr.id);
     s.serialize("type", tr.type);
@@ -146,7 +150,7 @@ inline void serialize(Serializer& s, TextureReference& tr)
 }
 
 // dirty hack
-inline void serialize(Serializer& s, const sf::Texture* ptr)
+inline MLS_EXPORT void serialize(Serializer& s, const sf::Texture* ptr)
 {
     static_assert(sizeof(ptr) == sizeof(std::uint64_t));
     s.serialize((std::uint64_t&)ptr);

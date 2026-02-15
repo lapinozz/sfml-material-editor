@@ -4,6 +4,8 @@
 #include <string>
 #include <variant>
 
+#include "mls/serializer.hpp"
+
 struct NoneType
 {
     bool operator==(const NoneType&) const = default;
@@ -69,6 +71,28 @@ struct ValueType : std::variant<NoneType, GenType, MatrixType, SamplerType, Arra
         else if (const auto* y = std::get_if<SamplerType>(this))
         {
             return "sampler2D";
+        }
+
+        assert(false);
+    }
+
+    std::string getName() const
+    {
+        assert(index() > 0);
+        if (const auto* t = std::get_if<GenType>(this))
+        {
+            if (t->arrity == 1)
+            {
+                return "Float";
+            }
+            else
+            {
+                return std::format("Vec{}", t->arrity);
+            }
+        }
+        else if (const auto* y = std::get_if<SamplerType>(this))
+        {
+            return "Texture";
         }
 
         assert(false);
@@ -144,6 +168,7 @@ static inline constexpr ValueType scalar{makeValueType<GenType>(uint8_t{1})};
 static inline constexpr ValueType vec2{makeValueType<GenType>(uint8_t{2})};
 static inline constexpr ValueType vec3{makeValueType<GenType>(uint8_t{3})};
 static inline constexpr ValueType vec4{makeValueType<GenType>(uint8_t{4})};
+static inline constexpr ValueType texture{makeValueType<SamplerType>()};
 
 ValueType makeVec(uint8_t arrity)
 {
@@ -218,4 +243,67 @@ Value convert(const Value& value, const ValueType& type)
     }
 
     return Values::null;
+}
+
+void serialize(Serializer& s, ValueType& type)
+{
+    if (s.isSaving)
+    {
+        int val;
+        if (type == Types::none)
+        {
+            val = 0;
+        }
+        else if (type == Types::scalar)
+        {
+            val = 1;
+        }
+        else if (type == Types::vec2)
+        {
+            val = 2;
+        }
+        else if (type == Types::vec3)
+        {
+            val = 3;
+        }
+        else if (type == Types::vec4)
+        {
+            val = 4;
+        }
+        else if (type == Types::texture)
+        {
+            val = -1;
+        }
+        s.serialize(val);
+    }
+    else
+    {
+        int val;
+        s.serialize(val);
+
+        if (val == 0)
+        {
+            type = Types::none;
+        }
+        else if (val == 1)
+        {
+            type = Types::scalar;
+        }
+        else if (val == 2)
+        {
+            type = Types::vec2;
+        }
+        else if (val == 3)
+        {
+            type = Types::vec3;
+        }
+        else if (val == 4)
+        {
+            type = Types::vec4;
+        }
+        else if (val == -1)
+        {
+            type = Types::texture;
+        }
+    }
 }

@@ -261,7 +261,7 @@ struct ExpressionNode : Graph::Node
     {
         for (PinId::PinIndex x{}; x < outputs.size(); x++)
         {
-            //ImGui::Spring(0, 0);
+            ImGui::Spring(0, 0);
             const auto& output = outputs[x];
             const auto pinId = id.makeOutput(x);
             ed::BeginPin(pinId, ed::PinKind::Output);

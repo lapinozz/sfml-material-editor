@@ -39,16 +39,19 @@ void MaterialTemplate::setParameterDefault(const std::string& name, ParameterVal
 
 void Material::setUniform(const std::string& name, ParameterValue param)
 {
+    const auto uniformId = std::format("{}{}", uniformPrefix, name);
     if (const sf::Texture** texture = std::get_if<const sf::Texture*>(&param))
     {
         if (*texture)
         {
-            shader.setUniform("P_" + name, **texture);
+            const auto sizeUniform = std::format("{}{}", uniformId, textureUniformSizeSuffix);
+            shader.setUniform(uniformId, **texture);
+            shader.setUniform(sizeUniform, sf::Vector2f((*texture)->getSize()));
         }
     }
     else
     {
-        std::visit([&](auto value) -> void { shader.setUniform("P_" + name, value); }, param);
+        std::visit([&](auto value) -> void { shader.setUniform(uniformId, value); }, param);
     }
 }
 
