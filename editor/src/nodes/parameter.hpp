@@ -3,6 +3,7 @@
 #include "ViewportScopeGuard.hpp"
 #include "archetypes.hpp"
 #include "expression.hpp"
+#include "mls/material.hpp"
 
 #include <array>
 #include <format>
@@ -23,6 +24,21 @@ struct ParameterNode : ExpressionNode
         if (it != graphContext->parameterTypes.end())
         {
             outputs[0].type = it->second;
+            
+            if (it->second == Types::texture)
+            {
+                outputs.resize(2);
+
+                outputs[0].name = "texture";
+                outputs[1].name = "size";
+
+                outputs[1].type = Types::vec2;
+            }
+            else
+            {
+                outputs.resize(1);
+                outputs[0].name = "";
+            }
         }
     }
 
@@ -35,14 +51,23 @@ struct ParameterNode : ExpressionNode
         }
         else
         {
-            const auto type = it->second;
-            outputs[0].type = type;
+            const auto addOutput = [&](auto index, auto type, auto name) 
+            {
+                outputs[index].type = type;
 
-            const std::string parameterName = std::format("P_{}", parameterId);
+                const std::string parameterName = std::format("{}{}", Material::uniformPrefix, name);
 
-            setOutput(0, Value{it->second, parameterName});
+                setOutput(index, Value{type, parameterName});
 
-            generator.shaderInputs[parameterName] = type;
+                generator.shaderInputs[parameterName] = type;
+            };
+
+            addOutput(0, it->second, parameterId);
+
+            if (it->second == Types::texture)
+            {
+                addOutput(1, Types::vec2, std::format("{}{}", parameterId, Material::textureUniformSizeSuffix));
+            }
         }
     }
 
@@ -52,11 +77,6 @@ struct ParameterNode : ExpressionNode
 
         if (ImGui::BeginCombo("##parameter", parameterId.c_str(), ImGuiComboFlags_WidthFitPreview | ImGuiComboFlags_PopupAlignLeft))
         {
-            if (ImGui::IsWindowAppearing())
-            {
-                ImGui::SetWindowPos(ImGui::GetWindowPos() + ImVec2(200.f, 0.f));
-            }
-            //ImGui::SetWindowPos(,);
             for (const auto& pair : graphContext->parameterTypes)
             {
                 const auto& param = pair.first;
@@ -73,6 +93,11 @@ struct ParameterNode : ExpressionNode
             }
             ImGui::EndCombo();
         }
+    }
+
+    void drawMiddle() override
+    {
+        ImGui::Dummy({8.f, 0.f});
     }
 
     void serialize(Serializer& s) override
