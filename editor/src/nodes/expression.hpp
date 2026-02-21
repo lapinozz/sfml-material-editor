@@ -30,6 +30,8 @@ struct ExpressionNode : Graph::Node
 
         ValueField field;
 
+        bool toRemove{};
+
         bool hasError() const
         {
             return error.size() > 0;
@@ -41,6 +43,8 @@ struct ExpressionNode : Graph::Node
         Value value;
 
         int linkCount{};
+
+        bool toRemove{};
     };
 
     std::vector<Input> inputs;

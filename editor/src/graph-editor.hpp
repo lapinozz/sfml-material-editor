@@ -901,7 +901,51 @@ struct GraphEditor
                 continue;
             }
 
-            static_cast<ExpressionNode&>(*node).update(&graphContext);
+            auto& expressionNode = static_cast<ExpressionNode&>(*node);
+
+            expressionNode.update(&graphContext);
+
+            auto& inputs = expressionNode.inputs;
+            for (int x{}; x < inputs.size(); x++)
+            {
+                if (inputs[x].toRemove)
+                {
+                    graph.removeLinks(expressionNode.id.makeInput(x));
+
+                    for (int y = x + 1; y < inputs.size(); y++)
+                    {
+                        while (auto link = graph.findLink(expressionNode.id.makeInput(y)))
+                        {
+                            graph.removeLink(link);
+                            graph.addLink(link.from(), expressionNode.id.makeInput(y - 1));
+                        }
+                    }
+
+                    inputs.erase(inputs.begin() + x);
+                    x--;
+                }
+            }
+
+            auto& outputs = expressionNode.outputs;
+            for (int x{}; x < outputs.size(); x++)
+            {
+                if (outputs[x].toRemove)
+                {
+                    graph.removeLinks(expressionNode.id.makeOutput(x));
+
+                    for (int y = x + 1; y < outputs.size(); y++)
+                    {
+                        while (auto link = graph.findLink(expressionNode.id.makeOutput(y)))
+                        {
+                            graph.removeLink(link);
+                            graph.addLink(link.from(), expressionNode.id.makeOutput(y - 1));
+                        }
+                    }
+
+                    outputs.erase(outputs.begin() + x);
+                    x--;
+                }
+            }
         }
 
         for (auto& link : graph.links)

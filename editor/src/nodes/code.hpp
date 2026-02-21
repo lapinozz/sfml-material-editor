@@ -35,23 +35,44 @@ struct CodeNode : ExpressionNode
         ExpressionNode::update(inGraphContext);
 
         function.params.resize(inputs.size() + outputs.size());
-        for (int x = 0; x < inputs.size(); x++)
-        {
-            auto& param = function.params[x];
-            param.isOut = false;
-            param.id = std::format("in_{}", x);
-            
-            auto& input = inputs[x];
-            input.type = param.type;
-            input.requireLink = true;
-        }
 
         for (int x = 0; x < outputs.size(); x++)
         {
-            auto& param = function.params[x + inputs.size()];
-            param.isOut = true;
-            param.id = std::format("out_{}", x);
-            outputs[x].type = param.type;
+            const auto index = outputs.size() - x - 1;
+            auto& output = outputs[index];
+
+            if (output.toRemove)
+            {
+                function.params.erase(function.params.begin() + index + inputs.size());
+            }
+            else
+            {
+                auto& param = function.params[index + inputs.size()];
+                param.isOut = true;
+                param.id = std::format("out_{}", index);
+                output.type = param.type;
+            }
+        }
+
+        for (int x = 0; x < inputs.size(); x++)
+        {
+            const auto index = inputs.size() - x - 1;
+
+            auto& input = inputs[index];
+
+            if (input.toRemove)
+            {
+                function.params.erase(function.params.begin() + index);
+            }
+            else
+            {
+                auto& param = function.params[index];
+                param.isOut = false;
+                param.id = std::format("in_{}", index);
+             
+                input.type = param.type;
+                input.requireLink = true;
+            }
         }
 
         function.id = std::format("custom_func_{}", id.Get());
@@ -122,8 +143,6 @@ struct CodeNode : ExpressionNode
     {
         ViewportScopeGuard viewportGuard;
 
-        std::optional<int> toRemove;
-
         for (PinId::PinIndex x{}; x < inputs.size() && x < function.params.size(); x++)
         {
             auto& input = inputs[x];
@@ -139,7 +158,7 @@ struct CodeNode : ExpressionNode
             ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 15.f);
             if (ImGui::Button(ICON_FA_CIRCLE_MINUS))
             {
-                toRemove = x;
+                input.toRemove = true;
             }
             ImGui::PopStyleVar();
 
@@ -150,11 +169,6 @@ struct CodeNode : ExpressionNode
             showParameterTypeCombo(param);
 
             ImGui::PopID();
-        }
-
-        if (toRemove)
-        {
-            inputs.erase(inputs.begin() + *toRemove);
         }
 
         ImGui::Dummy({13.f, 0.f});
@@ -170,8 +184,6 @@ struct CodeNode : ExpressionNode
     virtual void drawOutputPins()
     {
         ViewportScopeGuard viewportGuard;
-
-        std::optional<int> toRemove;
 
         for (PinId::PinIndex x{}; x < outputs.size() && (inputs.size() + x) < function.params.size(); x++)
         {
@@ -193,7 +205,7 @@ struct CodeNode : ExpressionNode
             ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 15.f);
             if (ImGui::Button(ICON_FA_CIRCLE_MINUS))
             {
-                toRemove = x;
+                output.toRemove = true;
             }
             ImGui::PopStyleVar();
 
@@ -210,11 +222,6 @@ struct CodeNode : ExpressionNode
             ImGui::EndHorizontal();
 
             ImGui::PopID();
-        }
-
-        if (toRemove)
-        {
-            outputs.erase(outputs.begin() + *toRemove);
         }
 
         ImGui::BeginHorizontal("h");
