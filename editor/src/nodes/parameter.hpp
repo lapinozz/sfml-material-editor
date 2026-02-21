@@ -34,9 +34,9 @@ struct ParameterNode : ExpressionNode
 
                 outputs[1].type = Types::vec2;
             }
-            else
+            else if (outputs.size() == 2)
             {
-                outputs.resize(1);
+                outputs[1].toRemove = true;
                 outputs[0].name = "";
             }
         }
