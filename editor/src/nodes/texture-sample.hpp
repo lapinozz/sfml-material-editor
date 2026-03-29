@@ -41,6 +41,10 @@ struct SampleTextureNode : ExpressionNode
                  {"Texture", makeValueType<SamplerType>()},
                  {"UV", Types::vec2},
              },
-             {{"RGBA", Types::vec4}, {"RGB", Types::vec3}, {"A", Types::scalar}}});
+             {
+                 {"RGBA", Types::vec4},
+                 {"RGB", Types::vec3},
+                 {"A", Types::scalar},
+             }});
     }
 };

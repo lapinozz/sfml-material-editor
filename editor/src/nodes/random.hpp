@@ -18,32 +18,12 @@ struct RandomNode : ExpressionNode
         ExpressionNode::update(inGraphContext);
     }
 
-    static inline const std::array<CodeGenerator::Function, 4> randFuncs{
-        CodeGenerator::Function{
-            .id = "rand1",
-            .returnType = Types::scalar,
-            .params = {{"v", Types::scalar}},
-            .body = {"return fract(sin(v) * 43758.5453123);"},
-        },
-        {
-            .id = "rand2",
-            .returnType = Types::scalar,
-            .params = {{"v", Types::vec2}},
-            .body = {"return fract(sin(dot(v.xy ,vec2(12.9898,78.233))) * 43758.5453);"},
-        },
-        {
-            .id = "rand3",
-            .returnType = Types::scalar,
-            .params = {{"v", Types::vec3}},
-            .body = {"return fract(sin(dot(v.xyz ,vec3(12.9898,78.233, 137.159))) * 43758.5453);"},
-        },
-        {
-            .id = "rand4",
-            .returnType = Types::scalar,
-            .params = {{"v", Types::vec4}},
-            .body = {"return fract(sin(dot(v.xyzw ,vec4(12.9898,78.233, 45.164, 94.673))) * 43758.5453);"},
-        },
-    };
+    static inline const std::array<CodeGen::Function, 4> randFuncs = CodeGen::makeGeneric({
+        .id = "rand",
+        .returnType = Types::scalar,
+        .params = {{"v", Types::none}},
+        .body = {"return fract(sin(dot(v, vec4(12.9898, 78.233, 45.164, 94.673).$SWIZZLE$)) * 43758.5453);"},
+    });
 
     void evaluate(CodeGenerator& generator) override
     {
@@ -51,8 +31,7 @@ struct RandomNode : ExpressionNode
         if (const auto* t = std::get_if<GenType>(&input.type))
         {
             const auto& func = randFuncs[t->arrity - 1];
-            generator.addFunc(func);
-            setOutput(0, generator.callFunc(func.id, {input}));
+            setOutput(0, generator.callFunc(func, {input}));
         }
     }
 

@@ -3,6 +3,7 @@
 #include "graph.hpp"
 #include "nodes/expression.hpp"
 #include "value.hpp"
+#include "code-function.hpp"
 
 #include <format>
 #include <string>
@@ -20,60 +21,12 @@ struct CodeGenerator
     Graph& graph;
     Type type;
 
-    static constexpr auto functionPrefix = "mlsf_";
-
-    struct Param
-    {
-        std::string id;
-        ValueType type{Types::scalar};
-        bool isOut{};
-
-        bool operator==(const Param&) const = default;
-    };
-
-    struct Function
-    {
-        std::string id;
-        ValueType returnType{Types::scalar};
-        std::vector<Param> params;
-        std::vector<std::string> body;
-
-        bool operator==(const Function&) const = default;
-
-        std::string makeSignature() const
-        {
-            std::string result;
-            const auto returnTypeString = returnType == Types::none ? "void" : returnType.toString();
-            result += std::format("{} {}{}(", returnTypeString, functionPrefix, id);
-
-            for (std::size_t x = 0; x < params.size(); x++)
-            {
-                if (x > 0)
-                {
-                    result += ", ";
-                }
-
-                const auto& param = params[x];
-
-                if (param.isOut)
-                {
-                    result += "out ";
-                }
-
-                result += std::format("{} {}", param.type.toString(), param.id);
-            }
-
-            result += ")";
-
-            return result;
-        }
-    };
-
     std::unordered_map<std::string, ValueType> shaderInputs;
-    std::unordered_map<std::string, Function> functions;
+    std::unordered_map<std::string, CodeGen::Function> functions;
     std::vector<std::string> body;
 
     std::unordered_map<PinId, Value> cachedValues;
+    std::vector<std::string> usedFunctions;
 
     int nextVar = 0;
 
@@ -314,7 +267,7 @@ struct CodeGenerator
         return {type, std::move(varName)};
     }
 
-    void addFunc(const Function& function)
+    void addFunc(const CodeGen::Function& function)
     {
         auto it = functions.find(function.id);
         if (it != functions.end())
@@ -327,15 +280,30 @@ struct CodeGenerator
         }
     }
 
-    Value callFunc(const std::string& id, std::vector<Value> params)
+    void useFunc(const CodeGen::Function& function)
     {
-        auto it = functions.find(id);
-        assert(it != functions.end());
+        for (const auto dep : function.dependencies)
+        {
+            auto it = functions.find(dep);
+            assert(it != functions.end());
 
-        const auto& function = it->second;
+            useFunc(it->second);
+        }
+
+        if (std::ranges::find(usedFunctions, function.id) == usedFunctions.end())
+        {
+            usedFunctions.push_back(function.id);
+        }
+    }
+
+    Value callFunc(const CodeGen::Function& function, std::vector<Value> params)
+    {
+        addFunc(function);
+        useFunc(function);
+
         assert(params.size() == function.params.size());
 
-        std::string out = functionPrefix + id + "(";
+        std::string out = CodeGen::functionPrefix + function.id + "(";
         for (std::size_t x = 0; x < params.size(); x++)
         {
             assert(params[x].type == function.params[x].type);
@@ -375,8 +343,13 @@ struct CodeGenerator
         code += "\n";
         code += "\n";
 
-        for (const auto& [name, func] : functions)
+        for (const auto& id : usedFunctions)
         {
+            auto it = functions.find(id);
+            assert(it != functions.end());
+
+            const auto& func = it->second;
+
             code += std::format("{}\n{{\n", func.makeSignature());
 
             for (const auto& line : func.body)
@@ -402,14 +375,14 @@ struct CodeGenerator
     }
 };
 
-void serialize(Serializer& s, CodeGenerator::Param& param)
+void serialize(Serializer& s, CodeGen::Param& param)
 {
     s.serialize("id", param.id);
     s.serialize("type", param.type);
     s.serialize("isOut", param.isOut);
 }
 
-void serialize(Serializer& s, CodeGenerator::Function& function)
+void serialize(Serializer& s, CodeGen::Function& function)
 {
     s.serialize("id", function.id);
     s.serialize("body", function.body);

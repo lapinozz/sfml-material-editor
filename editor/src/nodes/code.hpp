@@ -18,7 +18,7 @@ struct CodeNode : ExpressionNode
 {
     using ExpressionNode::ExpressionNode;
 
-    CodeGenerator::Function function;
+    CodeGen::Function function;
 
     std::string codeEditorString;
     TextEditor codeEditor;
@@ -100,11 +100,10 @@ struct CodeNode : ExpressionNode
             setOutput(x, std::move(var));
         }
         
-        generator.addFunc(function);
-        generator.callFunc(function.id, args);
+        generator.callFunc(function, args);
     }
 
-    void showParameterTypeCombo(CodeGenerator::Param& param)
+    void showParameterTypeCombo(CodeGen::Param& param)
     {
         static const std::array<ValueType, 5> types{
             Types::scalar,

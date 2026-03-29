@@ -44,6 +44,7 @@
 #include "nodes/vec-value.hpp"
 #include "nodes/random.hpp"
 #include "nodes/code.hpp"
+#include "nodes/noise.hpp"
 #include "preview.hpp"
 #include "shortcuts.hpp"
 #include "value.hpp"
@@ -199,6 +200,7 @@ struct ProjectEditor
         SampleTextureNode::registerArchetypes(archetypes);
         RandomNode::registerArchetypes(archetypes);
         CodeNode::registerArchetypes(archetypes);
+        NoiseNode::registerArchetypes(archetypes);
 
         NodeSerializer::repo = &archetypes;
     }
