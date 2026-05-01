@@ -45,6 +45,7 @@
 #include "nodes/random.hpp"
 #include "nodes/code.hpp"
 #include "nodes/noise.hpp"
+#include "nodes/voronoi.hpp"
 #include "preview.hpp"
 #include "shortcuts.hpp"
 #include "value.hpp"
@@ -201,6 +202,7 @@ struct ProjectEditor
         RandomNode::registerArchetypes(archetypes);
         CodeNode::registerArchetypes(archetypes);
         NoiseNode::registerArchetypes(archetypes);
+        VoronoiNode::registerArchetypes(archetypes);
 
         NodeSerializer::repo = &archetypes;
     }

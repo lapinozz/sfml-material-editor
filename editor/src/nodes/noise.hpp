@@ -23,7 +23,7 @@ struct NoiseNode : ExpressionNode
         auto periodInput = getInput(2);
         auto octaveInput = getInput(3);
         auto octaveMaskInput = getInput(4);
-        if (posInput && posInput && periodInput && octaveInput)
+        if (seedInput && posInput && periodInput && octaveInput && octaveMaskInput)
         {
             generator.addFunc(RandomNode::randFuncs[0]);
             generator.addFunc(NoiseNode_funcs::mod289[3]);

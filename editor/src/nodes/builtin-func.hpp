@@ -134,56 +134,91 @@ struct BuiltinFuncNode : ExpressionNode
             },
             "pow");
 
+        repo.add<BuiltinFuncNode>(
+            {
+                "Maths",
+                "length",
+                "Length",
+                {
+                    {"", Types::scalar},
+                },
+                {
+                    {"", Types::scalar},
+                },
+                {{{Types::none}, {Types::scalar}}},
+            },
+            "length");
+
+        repo.add<BuiltinFuncNode>(
+            {
+                "Maths",
+                "distance",
+                "Distance",
+                {
+                    {"P0", Types::scalar},
+                    {"P1", Types::scalar},
+                },
+                {
+                    {"", Types::scalar},
+                },
+                {{{Types::none, Types::none}, {Types::scalar}}},
+            },
+            "distance");
+
+        repo.add<BuiltinFuncNode>(
+            {
+                "Maths",
+                "dot",
+                "Dot",
+                {
+                    {"x", Types::none},
+                    {"y", Types::none},
+                },
+                {
+                    {"", Types::scalar},
+                },
+                {{{Types::none, Types::none}, {Types::scalar}}},
+            },
+            "dot");
+
+        repo.add<BuiltinFuncNode>(
+            {
+                "Maths",
+                "smoothstep",
+                "Smoothstep",
+                {
+                    {"Edge 0", Types::scalar},
+                    {"Edge 1", Types::scalar},
+                    {"X", Types::scalar},
+                },
+                {
+                    {"", Types::scalar},
+                },
+                {
+                    {{Types::scalar, Types::scalar, Types::none}, {Types::none}},
+                    {{Types::none, Types::none, Types::none}, {Types::none}},
+                },
+            },
+            "smoothstep");
+
+
         auto addSingleInputOutputGen = [&](auto func, auto name)
         {
-            repo.add<BuiltinFuncNode>({"Maths",
-                                       func,
-                                       name,
-                                       {
-                                           {"", Types::scalar},
-                                       },
-                                       {
-                                           {"", Types::scalar},
-                                       },
-                                       {{{Types::none}, {Types::none}}}},
-                                      func);
+            repo.add<BuiltinFuncNode>(
+                {
+                    "Maths",
+                    func,
+                    name,
+                    {
+                        {"", Types::scalar},
+                    },
+                    {
+                        {"", Types::scalar},
+                    },
+                    {{{Types::none}, {Types::none}}},
+                },
+                func);
         };
-
-        repo.add<BuiltinFuncNode>({"Maths",
-                                   "length",
-                                   "Length",
-                                   {
-                                       {"", Types::scalar},
-                                   },
-                                   {
-                                       {"", Types::scalar},
-                                   },
-                                   {{{Types::none}, {Types::scalar}}}},
-                                  "length");
-
-        repo.add<BuiltinFuncNode>({"Maths",
-                                   "distance",
-                                   "Distance",
-                                   {
-                                       {"P0", Types::scalar},
-                                   },
-                                   {
-                                       {"P1", Types::scalar},
-                                   },
-                                   {{{Types::none, Types::none}, {Types::scalar}}}},
-                                  "distance");
-
-        repo.add<BuiltinFuncNode>({"Maths",
-                                   "dot",
-                                   "Dot",
-                                   {
-                                       {"P0", Types::scalar},
-                                   },
-                                   {
-                                       {"P1", Types::scalar},
-                                   },
-                                   {{{Types::none, Types::none}, {Types::scalar}}}},
-                                  "dot");
 
         addSingleInputOutputGen("abs", "Absolute");
         addSingleInputOutputGen("sign", "Sign");

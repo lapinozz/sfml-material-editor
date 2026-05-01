@@ -22,14 +22,22 @@ struct OutputNode : ExpressionNode
             auto color = getInput(0);
             if (!color)
             {
-                color = Value{Types::scalar, "0.5"};
+                color = Value{Types::scalar, "1.0"};
             }
 
             generator.shaderInputs["time"] = Types::scalar;
 
             generator.body.insert(generator.body.begin(), "gl_TexCoord[0] = gl_TextureMatrix[0] * gl_MultiTexCoord0;");
             generator.body.insert(generator.body.begin(), "gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;");
-            generator.body.push_back("gl_FrontColor = vec4(" + color.code + ");");
+
+            if (color.type == Types::vec3)
+            {
+                generator.body.push_back("gl_FrontColor = vec4(" + color.code + ", 1.0);");
+            }
+            else
+            {
+                generator.body.push_back("gl_FrontColor = vec4(" + color.code + ");");
+            }
         }
         else if (generator.type == CodeGenerator::Type::Fragment)
         {
@@ -43,7 +51,14 @@ struct OutputNode : ExpressionNode
 
             if (color)
             {
-                generator.body.push_back("gl_FragColor = vec4(" + color.code + ");");
+                if (color.type == Types::vec3)
+                {
+                    generator.body.push_back("gl_FragColor = vec4(" + color.code + ", 1.0);");
+                }
+                else
+                {
+                    generator.body.push_back("gl_FragColor = vec4(" + color.code + ");");
+                }
             }
             else
             {
@@ -54,16 +69,36 @@ struct OutputNode : ExpressionNode
 
     static void registerArchetypes(ArchetypeRepo& repo)
     {
-        repo.add<OutputNode>({"",
-                              "out_vertex",
-                              "Vertex Out",
-                              {
-                                  {"Color", Types::vec4},
-                              },
-                              {}},
-                             CodeGenerator::Type::Vertex);
+        repo.add<OutputNode>(
+            {
+                "",
+                "out_vertex",
+                "Vertex Out",
+                {
+                    {"Color", Types::vec4},
+                },
+                {},
+                {
+                    {{Types::vec3}, {}},
+                    {{Types::vec4}, {}},
+                },
+            },
+            CodeGenerator::Type::Vertex);
 
-        repo.add<OutputNode>({"", "out_fragment", "Fragment Out", {{"Color", Types::vec4}}, {}},
-                             CodeGenerator::Type::Fragment);
+        repo.add<OutputNode>(
+            {
+                "",
+                "out_fragment",
+                "Fragment Out",
+                {
+                    {"Color", Types::vec4},
+                },
+                {},
+                {
+                    {{Types::vec3}, {}},
+                    {{Types::vec4}, {}},
+                },
+            },
+            CodeGenerator::Type::Fragment);
     }
 };
