@@ -472,6 +472,15 @@ struct ProjectEditor
         s.serialize("openTabs", openTabs);
         s.serialize("textureReferences", textureReferences);
 
+        auto major = MLS_VERSION_MAJOR;
+        auto minor = MLS_VERSION_MINOR;
+        auto patch = MLS_VERSION_PATCH;
+
+        auto ver = s.at("version");
+        ver.serialize("major", major);
+        ver.serialize("minor", minor);
+        ver.serialize("patch", patch);
+
         if (!s.isSaving)
         {
             updateTextures();

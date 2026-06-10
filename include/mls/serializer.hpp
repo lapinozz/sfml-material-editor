@@ -117,7 +117,14 @@ inline void serialize(Serializer& s, float& f)
     }
     else
     {
-        f = s.j;
+        if (s.j.is_null())
+        {
+            f = {};
+        }
+        else
+        {
+            f = s.j;
+        }
     }
 }
 
@@ -131,7 +138,14 @@ void serialize(Serializer& s, T& f)
     }
     else
     {
-        f = s.j;
+        if (s.j.is_null())
+        {
+            f = {};
+        }
+        else
+        {
+            f = s.j;
+        }
     }
 }
 
@@ -143,7 +157,21 @@ inline void serialize(Serializer& s, std::string& f)
     }
     else
     {
-        f = s.j;
+        if (s.j.is_null())
+        {
+            f = "";
+        }
+        else
+        {
+            if (s.j.is_null())
+            {
+                f = {};
+            }
+            else
+            {
+                f = s.j;
+            }
+        }
     }
 }
 
