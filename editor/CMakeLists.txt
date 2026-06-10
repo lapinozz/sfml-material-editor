@@ -7,7 +7,7 @@ include(FetchContent)
 
 FetchContent_Declare(SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
-    GIT_TAG 016bea9491ccafc3529019fe1d403885a8b3a6ae)
+    GIT_TAG ${MLS_SFML_TAG})
 FetchContent_MakeAvailable(SFML)
 
 FetchContent_Declare(nativefiledialog
@@ -28,10 +28,10 @@ set(IMGUI_DIR "${imgui_SOURCE_DIR}")
 set(IMGUI_SFML_FIND_SFML OFF)
 set(IMGUI_SFML_FIND_IMGUI OFF)
 FetchContent_Declare(ImGui-SFML
-    #GIT_REPOSITORY https://github.com/SFML/imgui-sfml
-    #GIT_TAG 5e8f8fb857c8f3cff1096bf3e4402c64e3bcf6af)
+    GIT_REPOSITORY https://github.com/SFML/imgui-sfml
+    GIT_TAG 7cf2cd96667c25df147ed5ccd355f9e8aeb984ca)
 
-    SOURCE_DIR "C:/Users/monst/Documents/projects/imgui-sfml")
+   # SOURCE_DIR "C:/Users/monst/Documents/projects/imgui-sfml")
 FetchContent_MakeAvailable(ImGui-SFML)
 
 FetchContent_Declare(nvdialog

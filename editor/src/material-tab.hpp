@@ -59,7 +59,7 @@ struct MaterialTab
     GraphEditor graphEditor{graph, graphContext, archetypes};
 
     MaterialTemplate materialTemplate;
-    Material::Ptr materialInstance = materialTemplate.makeInstance();
+    Material materialInstance = materialTemplate.makeInstance();
 
     bool isMaterialDirty{};
 
@@ -94,13 +94,15 @@ struct MaterialTab
 
     MaterialTab& operator=(MaterialTab&&) = delete;
 
-    void serialize(Serializer s)
+    void serialize(Serializer& s)
     {
         ed::SetCurrentEditor(edContext.get());
 
         s.serialize(graphEditor);
         s.serialize("parameters", materialTemplate.parameters);
-        s.serialize("parameterToTextureReference", parameterToTextureReference);
+        s.serialize("parameterToTextureReference", parameterToTextureReference); 
+        s.serialize("vertexShader", vertexCode);
+        s.serialize("fragmentShader", fragmentCode);
 
         if (!s.isSaving)
         {
@@ -217,7 +219,6 @@ struct MaterialTab
                 {
                     for (const auto& pair : textureReferences)
                     {
-                        const auto& textureReference = pair.second;
                         const auto& textureId = pair.first;
                         const bool is_selected = textureId == currentRef;
                         if (ImGui::Selectable(textureId.c_str(), is_selected))
@@ -299,7 +300,7 @@ struct MaterialTab
                 const auto it = textureReferences.find(pair.second);
                 if (it != textureReferences.end())
                 {
-                    materialInstance->setValue(pair.first, &it->second.preview);
+                    materialInstance.setValue(pair.first, &it->second.preview);
                 }
             }
 

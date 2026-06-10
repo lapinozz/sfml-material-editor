@@ -11,7 +11,10 @@ macro(mls_set_option var default type docstring)
     set(${var} ${${var}} CACHE ${type} ${docstring} FORCE)
 endmacro()
 
+option(MLS_EXAMPLES "Enable examples targets" ON)
+option(MLS_BUILD_EDITOR "Build the MLS editor" ON)
 option(MLS_FIND_SFML "Use find_package to find SFML" OFF)
+option(MLS_SFML_TAG "SFML version used for editor and examples" "3.1.0")
 
 if(MLS_FIND_SFML)
   if(NOT BUILD_SHARED_LIBS)
@@ -75,7 +78,10 @@ install(FILES ${PROJECT_SOURCE_DIR}/cmake/MLSConfig.cmake
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/MLS
 )
 
-option(MLS_BUILD_EDITOR "Build the MLS editor" ON)
+if(MLS_EXAMPLES)
+    add_subdirectory(examples)
+endif()
+
 if(MLS_BUILD_EDITOR)
   add_subdirectory(editor)
 endif()

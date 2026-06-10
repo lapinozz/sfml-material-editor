@@ -33,6 +33,7 @@ struct MLS_EXPORT Parameter
 struct MLS_EXPORT MaterialTemplate
 {
     std::unordered_map<std::string, Parameter> parameters;
+    std::unordered_map<std::string, std::string> parameterToTextureReference;
 
     std::string vertexSrc;
     std::string fragmentSrc;
@@ -43,18 +44,15 @@ struct MLS_EXPORT MaterialTemplate
 
     void setSource(std::string vertex, std::string fragment);
 
-    std::unique_ptr<Material> makeInstance();
+    Material makeInstance();
 
     void setParameterDefault(const std::string& name, ParameterValue param);
-};
 
-struct MLS_EXPORT MaterialGraph : public MaterialTemplate
-{
-};
+    void update(sf::Time currentTime, sf::Time currentRealTime);
 
-struct MLS_EXPORT Project
-{
-    std::unordered_map<std::string, MaterialTemplate> materialDefinitions;
+private:
+    sf::Time time;
+    sf::Time realTime;
 };
 
 class MLS_EXPORT Material
@@ -65,10 +63,6 @@ private:
     sf::Shader shader;
 
     Material() = delete;
-    Material(const Material&) = delete;
-    Material(Material&&) = delete;
-    Material& operator=(const Material&) = delete;
-    Material& operator=(Material&&) = delete;
 
     void setUniform(const std::string& name, ParameterValue param);
 
@@ -77,14 +71,48 @@ private:
     void updateParameters();
 
 public:
+
     static constexpr std::string_view uniformPrefix = "P_";
     static constexpr std::string_view textureUniformSizeSuffix = "_texSize";
-
-    using Ptr = std::unique_ptr<Material>;
 
     Material(MaterialTemplate& matTemplate) : materialTemplate{&matTemplate}
     {
         materialTemplate->instances.push_back(this);
+        rebuild();
+    }
+
+    Material(Material&& other)
+    {
+        *this = std::move(other);
+    }
+
+    Material(const Material& other)
+    {
+        *this = other;
+    }
+
+    Material& operator=(Material&& other)
+    {
+        if (other.materialTemplate)
+        {
+            materialTemplate = other.materialTemplate;
+            values = std::move(other.values);
+            shader = std::move(other.shader);
+        }
+
+        return *this;
+    }
+
+    Material& operator=(const Material& other)
+    {
+        if (other.materialTemplate)
+        {
+            materialTemplate = other.materialTemplate;
+            values = other.values;
+            rebuild();
+        }
+
+        return *this;
     }
 
     ~Material()
@@ -95,9 +123,13 @@ public:
 
     void rebuild();
 
+    operator const sf::Shader*() const;
     const sf::Shader& getShader() const;
 
     void setValue(const std::string& name, ParameterValue param);
+
+    void update(sf::Time currentTime);
+    void update(sf::Time currentTime, sf::Time currentRealTime);
 
     friend MaterialTemplate;
 };
@@ -111,12 +143,9 @@ struct MLS_EXPORT TextureReference
         Embedded
     };
 
-    std::string id;
-
     Type type;
     std::string data;
 };
-using TextureReferences = std::vector<TextureReference>;
 
 MLS_EXPORT sf::Texture defaultTextureLoader(const TextureReference& textureReference);
 using TextureLoadingCallback = std::function<const sf::Texture*(const TextureReference&)>;
@@ -124,17 +153,28 @@ using TextureLoadingCallback = std::function<const sf::Texture*(const TextureRef
 class MLS_EXPORT MaterialRepo
 {
 public:
-    std::vector<sf::Texture> ownedTextures;
-    std::vector<const sf::Texture*> referencedTextures;
+    std::vector<std::unique_ptr<sf::Texture>> ownedTextures;
     std::unordered_map<std::string, MaterialTemplate> templates;
 
-    std::unique_ptr<Material> makeInstance(const std::string& templateId)
+    Material makeInstance(const std::string& templateId)
     {
         return templates[templateId].makeInstance();
     }
 
-    static std::optional<MaterialRepo> loadFromFile(std::string_view path,
-                                                    const TextureLoadingCallback& textureLoadingCallback = {});
+    [[nodiscard]] static std::optional<MaterialRepo> loadFromFile(const std::string& path,
+                                                                  const TextureLoadingCallback& textureLoadingCallback = {});
+
+    void update();
+    void update(sf::Time deltaTime);
+    void update(sf::Time deltaTime, sf::Time realDeltaTime);
+
+private:
+    void serialize(Serializer& s);
+
+    sf::Time time;
+    sf::Time realTime;
+
+    sf::Clock clock;
 };
 
 inline MLS_EXPORT void serialize(Serializer& s, Parameter& p)
@@ -144,7 +184,6 @@ inline MLS_EXPORT void serialize(Serializer& s, Parameter& p)
 
 inline MLS_EXPORT void serialize(Serializer& s, TextureReference& tr)
 {
-    s.serialize("id", tr.id);
     s.serialize("type", tr.type);
     s.serialize("data", tr.data);
 }

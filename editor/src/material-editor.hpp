@@ -33,18 +33,18 @@
 #include "nodes/break-vec.hpp"
 #include "nodes/bridge.hpp"
 #include "nodes/builtin-func.hpp"
+#include "nodes/code.hpp"
 #include "nodes/constants.hpp"
 #include "nodes/expression.hpp"
 #include "nodes/input.hpp"
 #include "nodes/make-vec.hpp"
+#include "nodes/noise.hpp"
 #include "nodes/output.hpp"
 #include "nodes/parameter.hpp"
+#include "nodes/random.hpp"
 #include "nodes/scalar-value.hpp"
 #include "nodes/texture-sample.hpp"
 #include "nodes/vec-value.hpp"
-#include "nodes/random.hpp"
-#include "nodes/code.hpp"
-#include "nodes/noise.hpp"
 #include "nodes/voronoi.hpp"
 #include "preview.hpp"
 #include "shortcuts.hpp"
@@ -89,7 +89,7 @@ struct ProjectEditor
     TextEditor fragmentEditor;
 
     sf::Clock clock;
-    float runningTime{};
+    sf::Time runningTime{};
 
     Preview preview;
 
@@ -561,7 +561,7 @@ struct ProjectEditor
     {
         if (auto* tab = getCurrentTab())
         {
-            tab->materialInstance->setValue("time", runningTime);
+            tab->materialInstance.update(runningTime);
             tab->update(textureReferences);
             tab->draw();
 
@@ -941,7 +941,7 @@ struct ProjectEditor
             {
                 if (ImGui::BeginTabItem("Preview"))
                 {
-                    preview.update(tab->materialInstance->getShader());
+                    preview.update(tab->materialInstance.getShader());
 
                     ImGui::EndTabItem();
                 }
@@ -987,7 +987,7 @@ struct ProjectEditor
             processEvents();
 
             const auto deltaTime = clock.restart();
-            runningTime += deltaTime.asSeconds();
+            runningTime += deltaTime;
             ImGui::SFML::Update(window, deltaTime);
 
             drawMainWindow();

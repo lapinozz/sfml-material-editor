@@ -1,10 +1,96 @@
 #include "mls/material.hpp"
 
 #include "mls/base64.hpp"
+#include "mls/serializer.hpp"
 
-std::optional<MaterialRepo> MaterialRepo::loadFromFile(std::string_view path, const TextureLoadingCallback& textureLoadingCallback)
+#include <fstream>
+
+void serialize(Serializer& s, MaterialTemplate& m)
 {
+    s.serialize("parameters", m.parameters);
+    s.serialize("vertexShader", m.vertexSrc);
+    s.serialize("fragmentShader", m.fragmentSrc);
+    s.serialize("parameterToTextureReference", m.parameterToTextureReference);
+}
+
+void MaterialRepo::update()
+{
+    update(clock.restart());
+}
+
+void MaterialRepo::update(sf::Time deltaTime)
+{
+    update(deltaTime, deltaTime);
+}
+
+void MaterialRepo::update(sf::Time deltaTime, sf::Time realDeltaTime)
+{
+    time += deltaTime;
+    realTime += realDeltaTime;
+}
+
+std::optional<MaterialRepo> MaterialRepo::loadFromFile(const std::string& path,
+                                                       const TextureLoadingCallback& textureLoadingCallback)
+{
+    std::ifstream inputFile(path, std::ios_base::binary);
+    if (!inputFile)
+    {
+        return std::nullopt;
+    }
+
+    std::string fileContent{(std::istreambuf_iterator<char>(inputFile)), std::istreambuf_iterator<char>()};
+
+    try
+    {
+        MaterialRepo repo;
+        auto j = json::parse(fileContent);
+        Serializer s(false, j);
+        repo.serialize(s);
+
+        std::unordered_map<std::string, TextureReference> textureReferences;
+        s.serialize("textureReferences", textureReferences);
+
+        std::unordered_map<std::string, sf::Texture*> loadedTextures;
+
+        for (const auto& [textureId, textureRef] : textureReferences)
+        {
+            if (textureLoadingCallback)
+            {
+
+            }
+            else
+            {
+                repo.ownedTextures.emplace_back(std::make_unique<sf::Texture>(defaultTextureLoader(textureRef)));
+                loadedTextures[textureId] = repo.ownedTextures.back().get();
+            }
+        }
+
+        for (auto& [_, material] : repo.templates)
+        {
+            for (const auto& [paramId, textureId] : material.parameterToTextureReference)
+            {
+                if (auto it = loadedTextures.find(textureId); it != loadedTextures.end())
+                {
+                    material.setParameterDefault(paramId, it->second);
+                }
+            }
+        }
+
+        return std::move(repo);
+
+    } 
+    catch (...)
+    {
+    }
+
     return std::optional<MaterialRepo>();
+}
+
+void MaterialRepo::serialize(Serializer& s)
+{
+    assert(!s.isSaving);
+
+    s.serialize("materials", templates);
 }
 
 void MaterialTemplate::rebuildInstances()
@@ -23,9 +109,9 @@ void MaterialTemplate::setSource(std::string vertex, std::string fragment)
     rebuildInstances();
 }
 
-std::unique_ptr<Material> MaterialTemplate::makeInstance()
+Material MaterialTemplate::makeInstance()
 {
-    return std::make_unique<Material>(*this);
+    return {*this};
 }
 
 void MaterialTemplate::setParameterDefault(const std::string& name, ParameterValue param)
@@ -35,6 +121,20 @@ void MaterialTemplate::setParameterDefault(const std::string& name, ParameterVal
     {
         material->onDefaultChange(name, param);
     }
+}
+
+void MaterialTemplate::update(sf::Time currentTime, sf::Time currentRealTime)
+{
+    time = currentTime;
+    realTime = currentRealTime;
+
+    setParameterDefault("time", time.asSeconds());
+    setParameterDefault("realTime", realTime.asSeconds());
+}
+
+Material::operator const sf::Shader* () const
+{
+    return &shader;
 }
 
 void Material::setUniform(const std::string& name, ParameterValue param)
@@ -108,6 +208,17 @@ void Material::setValue(const std::string& name, ParameterValue param)
 {
     values[name] = param;
     setUniform(name, param);
+}
+
+void Material::update(sf::Time currentTime)
+{
+    update(currentTime, currentTime);
+}
+
+void Material::update(sf::Time currentTime, sf::Time currentRealTime)
+{
+    setUniform("time", currentTime.asSeconds());
+    setUniform("realTime", currentRealTime.asSeconds());
 }
 
 sf::Texture defaultTextureLoader(const TextureReference& textureReference)
