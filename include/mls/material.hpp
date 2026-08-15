@@ -32,7 +32,7 @@ struct MLS_EXPORT Parameter
 
 class Material;
 class MaterialRepo;
-    
+
 struct MLS_EXPORT MaterialTemplate
 {
     MaterialTemplate() = default;
@@ -158,7 +158,7 @@ struct MLS_EXPORT TextureReference
     std::string data;
 };
 
-MLS_EXPORT sf::Texture defaultTextureLoader(const TextureReference& textureReference);
+MLS_EXPORT sf::Texture defaultTextureLoader(const TextureReference& textureReference, std::filesystem::path basePath = {});
 using TextureLoadingCallback = std::function<const sf::Texture*(const TextureReference&)>;
 
 class MLS_EXPORT MaterialRepo

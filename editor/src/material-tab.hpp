@@ -48,6 +48,12 @@ EditorContextPtr makeEditorContext()
     return EditorContextPtr{ed::CreateEditor(&config)};
 };
 
+inline sf::Texture& getEmptyTexture()
+{
+    static sf::Texture texture(sf::Vector2u{1, 1});
+    return texture;
+}
+
 struct MaterialTab
 {
     ArchetypeRepo& archetypes = *NodeSerializer::repo;
@@ -301,6 +307,10 @@ struct MaterialTab
                 if (it != textureReferences.end())
                 {
                     materialInstance.setValue(pair.first, &it->second.preview);
+                }
+                else
+                {
+                    materialInstance.setValue(pair.first, &getEmptyTexture());
                 }
             }
 

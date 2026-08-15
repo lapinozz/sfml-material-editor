@@ -34,6 +34,7 @@ void MaterialRepo::merge(MaterialRepo&& other)
             templates.emplace(id, std::move(materialTemplate));
         }
     }
+    other.templates.clear();
 }
 
 void MaterialRepo::update()
@@ -68,6 +69,8 @@ std::optional<MaterialRepo> MaterialRepo::loadFromFile(const std::string& path,
 
     std::string fileContent{(std::istreambuf_iterator<char>(inputFile)), std::istreambuf_iterator<char>()};
 
+    const auto folderPath = std::filesystem::path{path}.remove_filename();
+
     try
     {
         auto j = json::parse(fileContent);
@@ -89,7 +92,7 @@ std::optional<MaterialRepo> MaterialRepo::loadFromFile(const std::string& path,
             }
             else
             {
-                repo.ownedTextures.emplace_back(std::make_unique<sf::Texture>(defaultTextureLoader(textureRef)));
+                repo.ownedTextures.emplace_back(std::make_unique<sf::Texture>(defaultTextureLoader(textureRef, folderPath)));
                 loadedTextures[textureId] = repo.ownedTextures.back().get();
             }
         }
@@ -283,17 +286,44 @@ void Material::update(sf::Time currentTime, sf::Time currentRealTime)
     setUniform("realTime", currentRealTime.asSeconds());
 }
 
-sf::Texture defaultTextureLoader(const TextureReference& textureReference)
+sf::Texture defaultTextureLoader(const TextureReference& textureReference, std::filesystem::path basePath)
 {
     sf::Texture texture;
 
     if (textureReference.type == TextureReference::Type::Embedded)
     {
         const std::string textureData = base64::from_base64(textureReference.data);
-        texture.loadFromMemory(textureData.data(), textureData.size());
+        if (!texture.loadFromMemory(textureData.data(), textureData.size()))
+        {
+            sf::err() << "Default texture loader failed to load embedded texture" << std::endl;
+        }
     }
     else if (textureReference.type == TextureReference::Type::Path)
     {
+        bool textureLoaded = false;
+
+        std::filesystem::path texturePath = textureReference.data;
+        if (texturePath.is_absolute())
+        {
+            textureLoaded = texture.loadFromFile(texturePath);
+        }
+        else
+        {
+            textureLoaded = texture.loadFromFile(basePath / texturePath) || texture.loadFromFile(texturePath);
+        }
+
+        if (!textureLoaded)
+        {
+            sf::err() << "Default texture loader failed to load texture: " << texturePath << std::endl;
+        }
+    }
+    else if (textureReference.type == TextureReference::Type::Id)
+    {
+        sf::err() << "Default texture loader can't load from ID: " << textureReference.data << std::endl;
+    }
+    else
+    {
+        sf::err() << "Uknown texture reference type" << std::endl;
     }
 
     return texture;

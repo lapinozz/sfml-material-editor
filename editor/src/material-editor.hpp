@@ -239,7 +239,7 @@ struct ProjectEditor
         return &it->second;
     }
 
-    std::optional<std::string> getProjectPath() const
+    std::optional<std::filesystem::path> getProjectPath() const
     {
         if (currentPath.empty())
         {
@@ -247,6 +247,16 @@ struct ProjectEditor
         }
 
         return currentPath;
+    }
+
+    std::optional<std::filesystem::path> getProjectFolder() const
+    {
+        if (auto projectPath = getProjectPath())
+        {
+            return projectPath->remove_filename();
+        }
+
+        return std::nullopt;
     }
 
     bool isDirty()
@@ -281,7 +291,7 @@ struct ProjectEditor
     {
         if (const auto path = getProjectPath())
         {
-            window.setTitle(std::format("My Little Shader Editor - {}", *path));
+            window.setTitle(std::format("My Little Shader Editor - {}", path->string()));
         }
         else
         {
@@ -668,17 +678,10 @@ struct ProjectEditor
 
     void updateTexture(const std::string& id)
     {
-        auto& textureReference = textureReferences[id];
-        textureReference.preview = {};
-
-        if (textureReference.type == TextureReference::Type::Path)
+        auto it = textureReferences.find(id);
+        if (it != textureReferences.end())
         {
-            textureReference.preview.loadFromFile(textureReference.data);
-        }
-        else if (textureReference.type == TextureReference::Type::Embedded)
-        {
-            const std::string textureData = base64::from_base64(textureReference.data);
-            textureReference.preview.loadFromMemory(textureData.data(), textureData.size());
+            it->second.preview = defaultTextureLoader(it->second, getProjectFolder().value_or(""));
         }
 
         for (auto& [id, tab] : materialTabs)
@@ -704,6 +707,29 @@ struct ProjectEditor
             reloadTexture = true;
         }
 
+        if (texturesListBox.renamed)
+        {
+            const auto& oldName = texturesListBox.renamed->first;
+            const auto& newName = texturesListBox.renamed->second;
+            
+            for (auto& [tabId, tab] : materialTabs)
+            {
+                for (auto& [paramId, textureId] : tab.parameterToTextureReference)
+                {
+                    if (textureId == oldName)
+                    {
+                        textureId = newName;
+                    }
+                }
+            }
+
+            updateTexture(newName);
+        }
+        else if (texturesListBox.removed)
+        {
+            updateTexture(*texturesListBox.removed);
+        }
+
         const auto& selectedId = texturesListBox.selectedId;
 
         if (textureReferences.contains(selectedId))
@@ -723,7 +749,19 @@ struct ProjectEditor
             }
             else if (textureReference.type == TextureReference::Type::Path)
             {
-                const bool isValidFile = std::filesystem::exists(std::filesystem::absolute(textureReference.data));
+                const std::filesystem::path texturePath = textureReference.data;
+
+                bool isValidFile = std::filesystem::exists(std::filesystem::absolute(texturePath));
+
+                if (!isValidFile)
+                {
+                    if (auto basePath = getProjectFolder())
+                    {
+                        std::error_code ec;
+                        isValidFile = std::filesystem::exists(*basePath / texturePath, ec);
+                    }
+                }
+
                 ImGui::PushStyleColor(ImGuiCol_::ImGuiCol_Text,
                                       isValidFile ? IM_COL32(255, 255, 255, 255) : IM_COL32(255, 0, 0, 255));
                 reloadTexture = reloadTexture || ImGui::InputText("Source File", &textureReference.data);
@@ -733,7 +771,7 @@ struct ProjectEditor
 
                 if (ImGui::Button("..."))
                 {
-                    if (auto basePath = getProjectPath())
+                    if (auto basePath = getProjectFolder())
                     {
                         if (const auto path = FileUtils::browseFile(false, FileUtils::defaultImageFilter))
                         {
@@ -768,6 +806,11 @@ struct ProjectEditor
                         reloadTexture = true;
                     }
                 }
+            }
+            
+            if (texturesListBox.added || texturesListBox.newSelection || texturesListBox.removed || texturesListBox.renamed)
+            {
+                reloadTexture = true;
             }
 
             if (reloadTexture)
