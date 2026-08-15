@@ -255,7 +255,7 @@ struct Preview
         center.y = std::clamp(center.y, -halfSize.y, halfSize.y);
         previewView.setCenter(center);
 
-        zoom = std::clamp(zoom, 0.4f, 3.f);
+        zoom = std::clamp(zoom, 0.15f, 3.f);
 
         ImGui::EndChild();
         ImGui::PopStyleVar();
