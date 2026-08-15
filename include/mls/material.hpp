@@ -30,17 +30,16 @@ struct MLS_EXPORT Parameter
     ParameterValue defaultValue;
 };
 
+class Material;
+class MaterialRepo;
+    
 struct MLS_EXPORT MaterialTemplate
 {
-    std::unordered_map<std::string, Parameter> parameters;
-    std::unordered_map<std::string, std::string> parameterToTextureReference;
-
-    std::string vertexSrc;
-    std::string fragmentSrc;
-
-    std::vector<class Material*> instances;
+    MaterialTemplate() = default;
+    MaterialTemplate(MaterialTemplate&& other);
 
     void rebuildInstances();
+    void merge(MaterialTemplate&& other);
 
     void setSource(std::string vertex, std::string fragment);
 
@@ -51,27 +50,26 @@ struct MLS_EXPORT MaterialTemplate
     void update(sf::Time currentTime, sf::Time currentRealTime);
 
 private:
+    std::unordered_map<std::string, Parameter> parameters;
+    std::unordered_map<std::string, std::string> parameterToTextureReference;
+
+    std::string vertexSrc;
+    std::string fragmentSrc;
+
+    std::vector<Material*> instances;
+
     sf::Time time;
     sf::Time realTime;
+
+    friend Material;
+    friend MaterialRepo;
+    friend class MaterialTab;
+    friend void serialize(Serializer& s, MaterialTemplate& m);
 };
 
 class MLS_EXPORT Material
 {
-private:
-    MaterialTemplate* materialTemplate{};
-    std::unordered_map<std::string, ParameterValue> values;
-    sf::Shader shader;
-
-    Material() = delete;
-
-    void setUniform(const std::string& name, ParameterValue param);
-
-    void onDefaultChange(const std::string& name, ParameterValue param);
-
-    void updateParameters();
-
 public:
-
     static constexpr std::string_view uniformPrefix = "P_";
     static constexpr std::string_view textureUniformSizeSuffix = "_texSize";
 
@@ -131,6 +129,19 @@ public:
     void update(sf::Time currentTime);
     void update(sf::Time currentTime, sf::Time currentRealTime);
 
+private:
+    MaterialTemplate* materialTemplate{};
+    std::unordered_map<std::string, ParameterValue> values;
+    sf::Shader shader;
+
+    Material() = delete;
+
+    void setUniform(const std::string& name, ParameterValue param);
+
+    void onDefaultChange(const std::string& name, ParameterValue param);
+
+    void updateParameters();
+
     friend MaterialTemplate;
 };
 
@@ -153,9 +164,6 @@ using TextureLoadingCallback = std::function<const sf::Texture*(const TextureRef
 class MLS_EXPORT MaterialRepo
 {
 public:
-    std::vector<std::unique_ptr<sf::Texture>> ownedTextures;
-    std::unordered_map<std::string, MaterialTemplate> templates;
-
     Material makeInstance(const std::string& templateId)
     {
         return templates[templateId].makeInstance();
@@ -164,12 +172,17 @@ public:
     [[nodiscard]] static std::optional<MaterialRepo> loadFromFile(const std::string& path,
                                                                   const TextureLoadingCallback& textureLoadingCallback = {});
 
+    void merge(MaterialRepo&& other);
+
     void update();
     void update(sf::Time deltaTime);
     void update(sf::Time deltaTime, sf::Time realDeltaTime);
 
 private:
     void serialize(Serializer& s);
+
+    std::vector<std::unique_ptr<sf::Texture>> ownedTextures;
+    std::unordered_map<std::string, MaterialTemplate> templates;
 
     sf::Time time;
     sf::Time realTime;

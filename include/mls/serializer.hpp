@@ -220,22 +220,36 @@ void serialize(Serializer& s, std::pair<Key, Value>& pair)
 template <typename Key, typename Value>
 void serialize(Serializer& s, std::unordered_map<Key, Value>& map)
 {
-    using Pair = std::pair<Key, Value>;
+    if (s.isSaving)
+    {
+        std::vector<Key> keys;
+        keys.reserve(map.size());
 
-    s.serializeValue<std::vector<Pair>>(
-        [&]()
+        for (const auto& [key, _] : map)
         {
-            std::vector<Pair> pairs;
-            for (const auto& pair : map)
-            {
-                pairs.push_back(pair);
-            }
-            std::ranges::sort(pairs, {}, &Pair::first);
-            return pairs;
-        },
-        [&](auto& pairs) {
-            map = {pairs.begin(), pairs.end()};
-        });
+            keys.push_back(key);
+        }
+
+        std::ranges::sort(keys);
+
+        int index{};
+        for (auto& key : keys)
+        {
+            auto elem = s.at(index++);
+            elem.at(0).serialize(key);
+            elem.at(1).serialize(map.at(key));
+        }
+    }
+    else
+    {
+        for (std::size_t x = 0; x < s.j.size(); x++)
+        {
+            auto elem = s.at(x);
+            Key key;
+            elem.at(0).serialize(key);
+            elem.at(1).serialize(map.emplace(key, Value{}).first->second);
+        }
+    }
 }
 
 template <typename T>
